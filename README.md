@@ -5,13 +5,13 @@ A collection of Claude Code skills and commands for AI-powered development workf
 ## Installation
 
 ```bash
-npx skills add joonseolee/claude-toolkit
+npx skills add ten1010-io/claude-toolkit
 ```
 
 Or install a specific skill:
 
 ```bash
-npx skills add joonseolee/claude-toolkit -s aqa-run
+npx skills add ten1010-io/claude-toolkit -s aqa-run
 ```
 
 ## Skills

@@ -41,6 +41,7 @@ AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 ```yaml
 name: "Login Test"
 description: "Verify login with valid credentials"
+base_url: "https://example.com"
 priority: critical
 tags: [auth, smoke]
 
@@ -49,34 +50,21 @@ test_data:
   password: "secret"
 
 steps:
-  - action: "Navigate to login page"
-    url: "${BASE_URL}/login"
-    assertions:
-      - type: url_contains
-        value: "/login"
-
-  - action: "Enter username"
-    input: "${username}"
-
-  - action: "Enter password"
-    input: "${password}"
-    sensitive: true
-
-  - action: "Click login button"
-    wait_after: "load"
-
-  - action: "Verify dashboard"
-    assertions:
-      - type: text_visible
-        value: "Dashboard"
+  - action: "${BASE_URL}/login 페이지로 이동"
+  - action: "아이디 입력란에 ${username} 입력"
+  - action: "비밀번호 입력란에 ${password} 입력"
+  - action: "로그인 버튼 클릭"
+  - action: "Dashboard 텍스트가 보이는지 확인"
 
 cleanup:
   - type: clear_cookies
 ```
 
+Each step only needs the `action` field — Claude reads the natural language description, inspects the page via `browser-use state`, and determines the appropriate browser commands automatically.
+
 **Prerequisites:**
 - [browser-use](https://github.com/browser-use/browser-use) CLI skill installed
-- `.env` file with `TARGET_BASE_URL` set
+- `base_url` in YAML or `TARGET_BASE_URL` in `.env`
 
 ## Commands
 

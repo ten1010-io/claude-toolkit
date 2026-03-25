@@ -47,12 +47,14 @@ browser-use --help
 설치 후 다시 실행해 주세요.
 ```
 
-### 1. 환경 확인
+### 1. 환경 확인 및 BASE_URL 결정
 
-1. 프로젝트 루트의 `.env` 파일을 읽어 `TARGET_BASE_URL` 값을 확인합니다.
-   - `.env`가 없으면 `.env.example`을 확인합니다.
-   - `TARGET_BASE_URL`이 비어있으면 사용자에게 물어봅니다.
-2. 이 값을 `${BASE_URL}`로 사용합니다.
+`${BASE_URL}` 값을 아래 우선순위로 결정합니다:
+
+1. **YAML 파일의 `base_url` 필드** (최우선)
+2. `.env` 파일의 `TARGET_BASE_URL`
+3. `.env.example` 파일의 `TARGET_BASE_URL`
+4. 위 모두 없으면 사용자에게 물어봅니다.
 
 ### 2. YAML 시나리오 파싱
 
@@ -60,30 +62,35 @@ YAML 파일을 Read 도구로 읽고 아래 구조를 파악합니다:
 
 ```yaml
 name: "시나리오 이름"
-description: "설명"
-priority: critical|high|medium|low
-tags: [tag1, tag2]
-test_data:
+description: "설명"                    # 선택
+base_url: "https://example.com"       # 선택 — 없으면 .env에서 참조
+priority: critical|high|medium|low    # 선택
+tags: [tag1, tag2]                    # 선택
+test_data:                            # 선택 — 변수 치환용
   username: "값"
   password: "값"
-depends_on: []
+depends_on: []                        # 선택
+
 steps:
-  - action: "행동 설명"
-    url: "${BASE_URL}/path"        # 있으면 해당 URL로 이동
-    input: "${username}"           # 있으면 해당 값을 입력
-    locator_hint: "..."            # 무시 — browser-use state로 직접 찾음
-    sensitive: true                # 있으면 로그에서 값 마스킹
-    wait_after: "load"             # 있으면 페이지 로드 대기
-    assertion_timeout: 15          # assertion 대기 시간(초)
-    assertions:
-      - type: url_contains|text_visible|visual|element_visible
-        value: "검증값"
-cleanup:
+  - action: "자연어로 행동 설명"       # 필수 — 이 필드 하나로 모든 행동을 기술
+
+cleanup:                              # 선택
   - type: clear_cookies
 ```
 
+**`action` 필드 작성 규칙:**
+
+`action`은 자연어 문장으로, Claude가 이를 읽고 적절한 browser-use 명령어를 판단합니다. 변수(`${...}`)를 포함할 수 있습니다.
+
+예시:
+- `"${BASE_URL}/welcome 페이지로 이동"` → `browser-use open ...`
+- `"아이디 입력란에 ${username} 입력"` → `browser-use state` → `browser-use input {index} "..."`
+- `"Sign in 버튼 클릭"` → `browser-use state` → `browser-use click {index}`
+- `"Dashboard 텍스트가 보이는지 확인"` → `browser-use state`로 텍스트 존재 여부 검증
+- `"URL에 /main 이 포함되어 있는지 확인"` → `browser-use state`의 URL 확인
+
 **변수 치환 규칙:**
-- `${BASE_URL}` → TARGET_BASE_URL 환경변수 값
+- `${BASE_URL}` → 위 1단계에서 결정된 base_url 값
 - `${username}`, `${password}` 등 → test_data의 해당 키 값
 
 ### 3. 리포트 디렉토리 생성
@@ -104,8 +111,10 @@ reports/{YYYY-MM-DD_HH-MM-SS}/
 
 #### 4-1. 브라우저 열기
 
+첫 번째 step의 action에서 URL을 파악하여 브라우저를 엽니다.
+
 ```bash
-browser-use --headed open "{첫 번째 step의 url}"
+browser-use --headed open "{URL}"
 ```
 
 `--headless` 옵션이 지정된 경우 `--headed` 대신 생략합니다.
@@ -128,28 +137,34 @@ browser-use --headed open "{첫 번째 step의 url}"
    browser-use screenshot reports/{timestamp}/artifacts/{scenario_name}/step_{NN}_before.png
    ```
 
-3. **action 실행**
-   - `url`이 있으면: `browser-use open "{치환된 url}"`
-   - `input`이 있으면:
-     a. `browser-use state`로 요소 인덱스 확인
-     b. action 설명을 참고하여 적절한 input 요소를 찾음 (예: "아이디 입력란" → username input, "비밀번호" → password input)
-     c. `browser-use input {index} "{치환된 input값}"`
-   - 둘 다 없고 "클릭"이 action에 포함되면:
-     a. `browser-use state`로 요소 인덱스 확인
-     b. action 설명에 맞는 버튼/링크를 찾아 `browser-use click {index}`
-   - `wait_after: "load"`이면 2초 대기 후 진행
+3. **action 해석 및 실행**
+
+   `action` 문자열을 읽고, 자연어 의미를 파악하여 적절한 browser-use 명령어를 실행합니다:
+
+   - **이동** (action에 URL이나 "이동", "접속", "navigate" 포함):
+     → `browser-use open "{URL}"`
+
+   - **입력** (action에 "입력", "type", "enter" 포함):
+     → `browser-use state`로 요소 확인 → `browser-use input {index} "{값}"`
+
+   - **클릭** (action에 "클릭", "click", "누르" 포함):
+     → `browser-use state`로 요소 확인 → `browser-use click {index}`
+
+   - **확인/검증** (action에 "확인", "보이는지", "검증", "verify", "assert" 포함):
+     → `browser-use state`에서 텍스트/URL/요소 존재 여부 확인
+     → 없으면 `browser-use eval "document.body.innerText"`로 재확인
+     → 결과를 assertion으로 기록 (pass/fail)
+
+   - **그 외**: action 문맥을 최대한 해석하여 적절한 browser-use 명령어 조합으로 실행
+
+   **핵심 원칙:** 항상 `browser-use state`로 현재 화면 상태를 먼저 확인한 뒤, action 설명에 가장 부합하는 요소를 선택하여 조작합니다.
 
 4. **After 스크린샷 저장**
    ```bash
    browser-use screenshot reports/{timestamp}/artifacts/{scenario_name}/step_{NN}_after.png
    ```
 
-5. **assertion 검증** (있는 경우)
-   - `url_contains`: `browser-use state`의 URL 확인
-   - `text_visible`: `browser-use state` 출력에서 해당 텍스트 존재 확인. 없으면 `browser-use eval "document.body.innerText"` 로 재확인
-   - `visual`: `browser-use screenshot`을 찍고 화면 상태를 기반으로 판단
-   - `element_visible`: `browser-use state`에서 해당 요소 존재 확인
-   - `assertion_timeout`이 있으면 해당 초만큼 재시도 (3초 간격)
+5. **action에 검증이 포함된 경우** 결과를 assertions 배열에 기록합니다.
 
 6. **종료 시간 기록** → duration_ms 계산
 

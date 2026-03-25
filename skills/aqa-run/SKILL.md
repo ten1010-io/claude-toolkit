@@ -23,6 +23,30 @@ Use when the user wants to run QA test scenarios, execute browser automation tes
 
 아래 절차를 **정확히** 따르세요.
 
+### 0. 의존성 체크
+
+시작 전에 `browser-use` CLI 스킬이 설치되어 있는지 확인합니다.
+
+```bash
+browser-use --help
+```
+
+- 정상 출력이 나오면 → 다음 단계로 진행
+- `command not found` 또는 에러 발생 시 → 아래 메시지를 출력하고 **즉시 중단**합니다:
+
+```
+[ERROR] browser-use CLI가 설치되어 있지 않습니다.
+아래 명령어로 먼저 설치해 주세요:
+
+  npx skills add anthropic/browser-use
+
+또는 pip으로 설치:
+
+  pip install browser-use
+
+설치 후 다시 실행해 주세요.
+```
+
 ### 1. 환경 확인
 
 1. 프로젝트 루트의 `.env` 파일을 읽어 `TARGET_BASE_URL` 값을 확인합니다.

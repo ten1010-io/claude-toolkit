@@ -47,26 +47,17 @@ browser-use --help
 설치 후 다시 실행해 주세요.
 ```
 
-### 1. 환경 확인 및 BASE_URL 결정
-
-`${BASE_URL}` 값을 아래 우선순위로 결정합니다:
-
-1. **YAML 파일의 `base_url` 필드** (최우선)
-2. `.env` 파일의 `TARGET_BASE_URL`
-3. `.env.example` 파일의 `TARGET_BASE_URL`
-4. 위 모두 없으면 사용자에게 물어봅니다.
-
-### 2. YAML 시나리오 파싱
+### 1. YAML 시나리오 파싱
 
 YAML 파일을 Read 도구로 읽고 아래 구조를 파악합니다:
 
 ```yaml
 name: "시나리오 이름"
 description: "설명"                    # 선택
-base_url: "https://example.com"       # 선택 — 없으면 .env에서 참조
 priority: critical|high|medium|low    # 선택
 tags: [tag1, tag2]                    # 선택
-test_data:                            # 선택 — 변수 치환용
+test_data:                            # 변수 치환용
+  BASE_URL: "https://example.com"     # URL도 여기에 포함
   username: "값"
   password: "값"
 depends_on: []                        # 선택
@@ -77,6 +68,15 @@ steps:
 cleanup:                              # 선택
   - type: clear_cookies
 ```
+
+**변수 치환 규칙:**
+
+`test_data`의 모든 키-값 쌍이 `${키}` 형태로 action 문자열에서 치환됩니다.
+- `${BASE_URL}` → test_data.BASE_URL 값
+- `${username}` → test_data.username 값
+- `${password}` → test_data.password 값
+
+`test_data`에 `BASE_URL`이 없고, `.env` 또는 `.env.example`에 `TARGET_BASE_URL`이 있으면 이를 `${BASE_URL}`로 사용합니다. 둘 다 없으면 사용자에게 물어봅니다.
 
 **`action` 필드 작성 규칙:**
 

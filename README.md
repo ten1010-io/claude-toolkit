@@ -41,11 +41,11 @@ AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 ```yaml
 name: "Login Test"
 description: "Verify login with valid credentials"
-base_url: "https://example.com"
 priority: critical
 tags: [auth, smoke]
 
 test_data:
+  BASE_URL: "https://example.com"
   username: "admin"
   password: "secret"
 
@@ -60,11 +60,10 @@ cleanup:
   - type: clear_cookies
 ```
 
-Each step only needs the `action` field — Claude reads the natural language description, inspects the page via `browser-use state`, and determines the appropriate browser commands automatically.
+Each step only needs the `action` field — Claude reads the natural language description, inspects the page via `browser-use state`, and determines the appropriate browser commands automatically. All variables including `BASE_URL` are defined in `test_data`.
 
 **Prerequisites:**
 - [browser-use](https://github.com/browser-use/browser-use) CLI skill installed
-- `base_url` in YAML or `TARGET_BASE_URL` in `.env`
 
 ## Commands
 

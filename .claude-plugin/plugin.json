@@ -1,0 +1,21 @@
+{
+  "name": "claude-toolkit",
+  "version": "0.1.0",
+  "description": "AI-powered QA automation skills for Claude Code — run YAML test scenarios via browser-use and generate test scenario files interactively.",
+  "author": {
+    "name": "ten1010-io",
+    "url": "https://github.com/ten1010-io"
+  },
+  "homepage": "https://github.com/ten1010-io/claude-toolkit",
+  "repository": "https://github.com/ten1010-io/claude-toolkit",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "qa",
+    "automation",
+    "browser-use",
+    "testing",
+    "yaml",
+    "scenarios"
+  ]
+}

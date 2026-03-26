@@ -1,3 +1,8 @@
+---
+name: aqa-gen
+description: Interactively generate YAML QA test scenario files through a guided Q&A process. Supports login preconditions, auto-generated error cases, and multi-language output. Use this skill whenever the user wants to create, generate, or scaffold a QA test scenario — even if they just say "시나리오 만들어줘", "make a test case", "generate a scenario", or describe a feature they want to test.
+---
+
 # AQA Gen - AI QA Automation Scenario Generator
 
 Interactively generates YAML scenario files. Asks the user for required information, then creates a YAML file containing both success and error cases.
@@ -49,8 +54,10 @@ Include examples in each question so the user can answer easily.
    > "What is the URL path of the page to test? (e.g., /projects/new, /users, /settings)"
    > "You can also enter a full URL. (e.g., https://example.com/projects/new)"
 
-   - If a full URL is entered, the domain part is automatically converted to `${BASE_URL}`.
-   - If only a path is entered, it is used as `${BASE_URL}{path}`.
+   - If a full URL is entered, extract the domain (e.g., `https://example.com`) and store it as `BASE_URL`. The remaining path is used as the target path.
+   - If only a path is entered, ask the user for the base URL separately:
+     > "What is the base URL of the application? (e.g., https://example.com)"
+   - Store the extracted or entered base URL as `BASE_URL` — it will be saved into every case's `test_data`.
    - This value is also used when auto-generating error cases.
 
 5. **Test Data (Success Case)**
@@ -105,8 +112,9 @@ Parse the collected input according to the rules below.
 
 #### Test Data
 - Parse `key=value` pairs into a `test_data` map.
+- **Always include `BASE_URL`** as the first entry in `test_data` for every case, using the value collected in step 4.
 - Keys containing `password`, `secret`, `token`, etc. automatically set `sensitive: true` on the relevant steps.
-- If "none", omit `test_data`.
+- If the user entered "none" for test data, still include `BASE_URL`.
 
 #### Steps Parsing
 Convert the user's natural language sentences into step objects:
@@ -202,6 +210,7 @@ cases:
     priority: critical
     expected_result: "pass"
     test_data:
+      BASE_URL: "{base_url}"
       login_username: "{login_user}"     # only if login required
       login_password: "{login_pass}"     # only if login required
       {key}: "{value}"
@@ -221,6 +230,7 @@ cases:
     priority: high
     expected_result: "fail"
     test_data:
+      BASE_URL: "{base_url}"
       {key}: "{modified value}"
     steps:
       - action: "{Natural language action description}"
@@ -231,6 +241,7 @@ cases:
     priority: medium
     expected_result: "fail"
     test_data:
+      BASE_URL: "{base_url}"
       {key}: "{modified value}"
     steps:
       - action: "{Natural language action description}"
@@ -252,6 +263,7 @@ cases:
     priority: critical
     expected_result: "pass"
     test_data:
+      BASE_URL: "{base_url}"
       {key}: "{value}"
     steps:
       - action: "{Natural language action description}"
@@ -287,6 +299,7 @@ To run: /aqa-run {save path}
 - If the user's answer is ambiguous, ask follow-up questions for clarification.
 - When the user enters steps in natural language, use the text directly as the `action` field.
 - `${BASE_URL}` is always prepended to URLs. Even if the user enters a full URL, convert it to `${BASE_URL}` + path format.
+- `BASE_URL` must always be present in `test_data` for every case — this is what allows aqa-run to resolve `${BASE_URL}` in step actions across sessions.
 - `cleanup` includes `clear_cookies` by default for each case.
 - If the file already exists, ask the user whether to overwrite it.
 - If the expected error message for an error case is unknown, use a `visual` assertion instead:

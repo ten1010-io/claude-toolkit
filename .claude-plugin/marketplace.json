@@ -1,0 +1,39 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "claude-toolkit",
+  "description": "AI-powered QA automation skills for Claude Code — run YAML test scenarios via browser-use and generate test scenario files interactively.",
+  "owner": {
+    "name": "ten1010-io",
+    "email": ""
+  },
+  "plugins": [
+    {
+      "name": "claude-toolkit",
+      "source": "./",
+      "description": "QA automation toolkit — /aqa-run executes YAML test scenarios via browser-use with HTML reports, /aqa-gen interactively generates YAML scenario files with auto error cases.",
+      "version": "0.1.0",
+      "author": {
+        "name": "ten1010-io"
+      },
+      "homepage": "https://github.com/ten1010-io/claude-toolkit",
+      "repository": "https://github.com/ten1010-io/claude-toolkit",
+      "license": "MIT",
+      "keywords": [
+        "qa",
+        "automation",
+        "browser-use",
+        "testing",
+        "yaml"
+      ],
+      "category": "workflow",
+      "tags": [
+        "qa",
+        "testing",
+        "browser-automation",
+        "yaml",
+        "scenarios"
+      ],
+      "strict": false
+    }
+  ]
+}

@@ -1,23 +1,20 @@
 # Claude Toolkit
 
-A collection of Claude Code skills for AI-powered QA automation.
+By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation.
 
 ## Installation
 
 ```bash
-npx skills add ten1010-io/claude-toolkit
+# Step 1: Add to marketplace
+/plugin marketplace add ten1010-io/claude-toolkit
+
+# Step 2: Install
+/plugin install claude-toolkit@claude-toolkit
 ```
 
-Or install a specific skill:
+## Commands
 
-```bash
-npx skills add ten1010-io/claude-toolkit -s aqa-run
-npx skills add ten1010-io/claude-toolkit -s aqa-gen
-```
-
-## Skills
-
-### aqa-run
+### /aqa-run
 
 AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 
@@ -36,7 +33,7 @@ AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 
 ```
 /aqa-run scenarios/auth/login.yaml
-/aqa-run scenarios/auth/                      # run all scenarios in directory
+/aqa-run scenarios/auth/                       # run all scenarios in directory
 /aqa-run scenarios/auth/login.yaml --headless  # headless mode
 ```
 
@@ -61,14 +58,11 @@ AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 
 # Sequential execution (1 at a time)
 /aqa-run login.yaml --parallel 1
-
-# All options combined
-/aqa-run login.yaml --screenshot --parallel 4 --headless
 ```
 
 > **Note:** When running in parallel, resource-creating values (e.g., project names) are automatically suffixed with `_1`, `_2`, etc. to avoid conflicts between concurrent cases.
 
-**Scenario format (cases structure):**
+**Scenario format:**
 
 ```yaml
 name: "Login"
@@ -80,6 +74,7 @@ cases:
     priority: critical
     expected_result: "pass"
     test_data:
+      BASE_URL: "https://example.com"
       username: "testuser"
       password: "secret"
     steps:
@@ -96,6 +91,7 @@ cases:
     priority: high
     expected_result: "fail"
     test_data:
+      BASE_URL: "https://example.com"
       username: "testuser"
       password: "wrongpassword"
     steps:
@@ -109,20 +105,22 @@ cases:
       - type: clear_cookies
 ```
 
-Each step only needs the `action` field — Claude reads the natural language description, inspects the page via `browser-use state`, and determines the appropriate browser commands automatically. All variables including `BASE_URL` are defined in `test_data` or `.env`.
+Each step only needs the `action` field — Claude reads the natural language description and determines the appropriate browser commands automatically. All variables including `BASE_URL` must be defined in `test_data`.
 
 Legacy single-scenario format (without `cases`) is also supported for backward compatibility.
 
-### aqa-gen
+---
+
+### /aqa-gen
 
 Interactive scenario generator that creates YAML test files through a guided Q&A process.
 
 **Features:**
 - Step-by-step guided input collection
+- `BASE_URL` automatically saved into `test_data` (no re-entry needed on re-run)
 - Login precondition support (auto-prepends login steps to every case)
 - Automatic error case generation based on feature type (login, signup, search, form submission)
 - Auto-generated tags from feature name/description
-- `visual` assertion fallback when exact error messages are unknown
 - Multi-language support (responds in the user's language)
 
 **Usage:**
@@ -131,11 +129,11 @@ Interactive scenario generator that creates YAML test files through a guided Q&A
 /aqa-gen
 ```
 
-The skill will ask you:
+The command will ask you:
 1. Feature name (e.g., Login, Signup)
 2. Description
 3. Login required? (auto-prepends login steps if yes)
-4. Target page URL path
+4. Target page URL (BASE_URL is extracted and saved automatically)
 5. Test data for the success case
 6. Steps for the success case
 7. Whether to auto-generate error cases
@@ -144,23 +142,25 @@ The skill will ask you:
 **Prerequisites:**
 - [browser-use](https://github.com/browser-use/browser-use) CLI installed (uv venv + Python 3.12 recommended)
 
-## Commands
-
-_(Coming soon)_
+---
 
 ## Structure
 
 ```
 claude-toolkit/
-  skills/
-    aqa-run/
-      SKILL.md
-    aqa-gen/
-      SKILL.md
-  commands/
-    (future commands)
-  login.yaml          # example scenario
-  README.md
+├── .claude-plugin/
+│   ├── plugin.json        # Plugin metadata
+│   └── marketplace.json   # Marketplace catalog
+├── commands/
+│   ├── aqa-run.md         # /aqa-run command
+│   └── aqa-gen.md         # /aqa-gen command
+└── skills/
+    ├── aqa-run/
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── report-template.html
+    └── aqa-gen/
+        └── SKILL.md
 ```
 
 ## License

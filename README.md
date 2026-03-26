@@ -26,7 +26,8 @@ AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 - AI-powered element detection (no CSS selectors needed)
 - `expected_result: "fail"` support for error/negative test cases
 - Automatic SSL certificate warning bypass
-- Screenshot capture at every step (before/after)
+- Parallel execution with worker pool pattern
+- Optional screenshot capture (before/after per step)
 - HTML report + summary.json generation
 - Sensitive data masking in reports
 - browser-use CLI auto-detection (global, project venv, home venv)
@@ -38,6 +39,34 @@ AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
 /aqa-run scenarios/auth/                      # run all scenarios in directory
 /aqa-run scenarios/auth/login.yaml --headless  # headless mode
 ```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--headed` | Yes | Run with a visible browser window |
+| `--headless` | No | Run in headless mode (no browser UI) |
+| `--screenshot` | Off | Capture before/after screenshots for every step |
+| `--parallel N` | 2 | Run N cases concurrently in separate browser sessions |
+
+```
+# Fast run (default): no screenshots, 2 cases in parallel
+/aqa-run login.yaml
+
+# With screenshots
+/aqa-run login.yaml --screenshot
+
+# Run 4 cases in parallel, headless
+/aqa-run login.yaml --parallel 4 --headless
+
+# Sequential execution (1 at a time)
+/aqa-run login.yaml --parallel 1
+
+# All options combined
+/aqa-run login.yaml --screenshot --parallel 4 --headless
+```
+
+> **Note:** When running in parallel, resource-creating values (e.g., project names) are automatically suffixed with `_1`, `_2`, etc. to avoid conflicts between concurrent cases.
 
 **Scenario format (cases structure):**
 
@@ -90,9 +119,11 @@ Interactive scenario generator that creates YAML test files through a guided Q&A
 
 **Features:**
 - Step-by-step guided input collection
+- Login precondition support (auto-prepends login steps to every case)
 - Automatic error case generation based on feature type (login, signup, search, form submission)
+- Auto-generated tags from feature name/description
 - `visual` assertion fallback when exact error messages are unknown
-- Target page URL collection for accurate error case generation
+- Multi-language support (responds in the user's language)
 
 **Usage:**
 
@@ -103,8 +134,8 @@ Interactive scenario generator that creates YAML test files through a guided Q&A
 The skill will ask you:
 1. Feature name (e.g., Login, Signup)
 2. Description
-3. Target page URL path
-4. Tags
+3. Login required? (auto-prepends login steps if yes)
+4. Target page URL path
 5. Test data for the success case
 6. Steps for the success case
 7. Whether to auto-generate error cases

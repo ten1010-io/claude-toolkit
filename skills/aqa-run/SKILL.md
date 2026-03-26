@@ -22,6 +22,8 @@ Use when the user wants to run QA test scenarios, execute browser automation tes
   - e.g.: `scenarios/auth/` (runs all YAML files in the directory)
 - `--headed` — Run with a visible browser window (default: headed)
 - `--headless` — Run in headless mode
+- `--screenshot` — Capture before/after screenshots for every step and embed them in the HTML report (default: off)
+- `--parallel N` — Run N cases concurrently in separate browser sessions (default: 2). Use `--parallel 1` for sequential execution.
 
 ## Workflow
 
@@ -146,7 +148,7 @@ Examples:
 
 ```
 reports/{YYYY-MM-DD_HH-MM-SS}/
-  artifacts/{feature_name_case_name}/    ← screenshots per case
+  artifacts/{feature_name_case_name}/    ← only created if --screenshot is enabled
   summary.json
   report.html
 ```
@@ -156,14 +158,52 @@ reports/{YYYY-MM-DD_HH-MM-SS}/
 
 ### 4. Execute Scenarios
 
-Execute all cases in the YAML sequentially. Each case runs in an independent browser session.
+Execute cases in parallel using the Agent tool. The `--parallel N` argument controls how many cases run concurrently (default: 2).
+
+- If `--parallel 1`: execute cases sequentially (one at a time)
+- If `--parallel N` (N >= 2): use a **worker pool** pattern with N slots
+
+Each Agent runs its case in an independent browser session using `--session case_{index}` to avoid conflicts.
+
+> When there is only 1 case in the YAML, parallel has no effect — just run it directly.
+
+#### Parallel Execution: Worker Pool Pattern
+
+Use `run_in_background: true` for Agent calls to implement a true worker pool:
+
+1. Launch up to N background Agents for the first N cases
+2. **As soon as any single Agent completes**, immediately launch the next pending case in that freed slot — do NOT wait for all N agents to finish
+3. Repeat until all cases are done
+4. Collect all results
+
+This ensures maximum throughput: if case 1 finishes in 2 minutes but case 2 takes 5 minutes, case 3 starts at the 2-minute mark, not the 5-minute mark.
+
+#### Parallel Execution: Session Isolation
+
+Each case MUST use a unique browser session to prevent conflicts:
+- Case 1 → `--session case_1`
+- Case 2 → `--session case_2`
+- etc.
+
+**CRITICAL:** When running in parallel, each Agent handles its own browser session independently. Input fields, cookies, and page state are fully isolated between sessions. Never reuse or share a session across concurrent cases.
+
+#### Parallel Execution: Unique Test Data
+
+**CRITICAL:** When cases run in parallel, their test data values that create resources (e.g., project names, usernames, group names) MUST be unique across cases to avoid conflicts. Before executing, append `_{case_index}` or a timestamp suffix to any resource-creating values in `test_data`.
+
+Example: if `test_data` has `project_name: "test-project"`:
+- Case 1 → `test-project_1`
+- Case 2 → `test-project_2`
+- Case 3 → `test-project_3`
+
+This only applies to values that **create new resources** on the system. Values used for lookup, login, or read-only operations (e.g., `login_username`, `search_query`) should NOT be modified.
 
 #### 4-1. Open Browser
 
-Identify the URL from the first step's action of each case and open the browser.
+For each case, identify the URL from the first step's action and open the browser with a unique session name.
 
 ```bash
-browser-use --headed open "{URL}"
+browser-use --session case_{index} --headed open "{URL}"
 ```
 
 If `--headless` is specified, omit `--headed`.
@@ -179,14 +219,12 @@ If `browser-use state` output contains "Your connection is not private" or "ERR_
 
 For each step, perform the following:
 
-1. **Record start time** (via Bash: `date +%s%3N`)
-
-2. **Save Before screenshot**
+1. **Save Before screenshot** (only if `--screenshot` is enabled)
    ```bash
-   browser-use screenshot reports/{timestamp}/artifacts/{feature_case}/step_{NN}_before.png
+   browser-use --session case_{index} screenshot reports/{timestamp}/artifacts/{feature_case}/step_{NN}_before.png
    ```
 
-3. **Interpret and execute the action**
+2. **Interpret and execute the action**
 
    Read the `action` string, understand its natural language meaning, and execute the appropriate browser-use commands:
 
@@ -208,16 +246,14 @@ For each step, perform the following:
 
    **Core Principle:** Always check the current page state via `browser-use state` first, then select the element that best matches the action description.
 
-4. **Save After screenshot**
+3. **Save After screenshot** (only if `--screenshot` is enabled)
    ```bash
-   browser-use screenshot reports/{timestamp}/artifacts/{feature_case}/step_{NN}_after.png
+   browser-use --session case_{index} screenshot reports/{timestamp}/artifacts/{feature_case}/step_{NN}_after.png
    ```
 
-5. **If the action includes verification**, record the result in the assertions array.
+4. **If the action includes verification**, record the result in the assertions array.
 
-6. **Record end time** → calculate duration_ms
-
-7. **Record step result:**
+5. **Record step result:**
    - `index`: step number (starting from 1)
    - `action`: the step's action text
    - `status`: "pass" | "fail" | "error"
@@ -225,9 +261,7 @@ For each step, perform the following:
    - `locator`: the actual browser-use command used
    - `assertions`: array of verification results
    - `error`: error message (null if none)
-   - `duration_ms`: elapsed time
-   - `screenshots.before`: relative path to before screenshot
-   - `screenshots.after`: relative path to after screenshot
+   - `screenshots`: before/after paths (only if `--screenshot` is enabled, otherwise omit)
 
 #### 4-4. Determine Result Based on expected_result
 
@@ -248,8 +282,8 @@ When determining the final result for each case, check the `expected_result` fie
 
 After each case execution:
 ```bash
-browser-use cookies clear
-browser-use close
+browser-use --session case_{index} cookies clear
+browser-use --session case_{index} close
 ```
 
 ### 5. Generate summary.json
@@ -286,12 +320,7 @@ Save in the following format using the Write tool:
               "passed": true
             }
           ],
-          "error": null,
-          "duration_ms": 1234,
-          "screenshots": {
-            "before": "reports/.../step_01_before.png",
-            "after": "reports/.../step_01_after.png"
-          }
+          "error": null
         }
       ]
     }
@@ -302,7 +331,6 @@ Save in the following format using the Write tool:
 ### 6. Generate HTML Report
 
 Generate `report.html` using the HTML template below via the Write tool.
-Embed screenshots as inline base64 (obtain via Bash: `base64 -i {path}`).
 
 ```html
 <!DOCTYPE html>
@@ -340,9 +368,6 @@ Embed screenshots as inline base64 (obtain via Bash: `base64 -i {path}`).
     .step-error { color: #ef4444; font-size: 13px; margin-top: 4px; }
     .assertion-pass { color: #166534; font-size: 12px; }
     .assertion-fail { color: #991b1b; font-size: 12px; }
-    .screenshot { max-width: 500px; border: 1px solid #ddd; border-radius: 4px; margin-top: 8px; }
-    .screenshots { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
-    .screenshot-label { font-size: 11px; color: #999; margin-bottom: 2px; }
     .expected-label { font-size: 11px; color: #6366f1; font-weight: bold; }
 </style>
 </head>
@@ -389,18 +414,6 @@ Embed screenshots as inline base64 (obtain via Bash: `base64 -i {path}`).
 
             <!-- If error exists -->
             <div class="step-error">Error: {error_message}</div>
-
-            <!-- Screenshots (base64 inline) -->
-            <div class="screenshots">
-                <div>
-                    <div class="screenshot-label">Before</div>
-                    <img class="screenshot" src="data:image/png;base64,{base64_data}">
-                </div>
-                <div>
-                    <div class="screenshot-label">After</div>
-                    <img class="screenshot" src="data:image/png;base64,{base64_data}">
-                </div>
-            </div>
         </div>
         <!-- /Steps -->
     </div>

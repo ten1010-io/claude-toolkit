@@ -1,6 +1,6 @@
 # Claude Toolkit
 
-By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation.
+By [Ten](https://github.com/ten1010-io) — Claude Code plugins for developer productivity.
 
 ## Installation
 
@@ -8,15 +8,18 @@ By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered 
 # Step 1: Add to marketplace
 /plugin marketplace add ten1010-io/claude-toolkit
 
-# Step 2: Install
-/plugin install claude-toolkit@claude-toolkit
+# Step 2: Install the plugin you need
+/plugin install aqa@ten1010-io          # AI Quality Assurance
+/plugin install ship@ten1010-io         # PR workflow automation
 ```
 
-## Commands
+## Plugins
 
-### /aqa-run
+### aqa — AI Quality Assurance
 
 AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
+
+#### /aqa-run
 
 **Features:**
 - YAML-based test scenario definition with `cases` structure (multiple test cases per file)
@@ -109,9 +112,7 @@ Each step only needs the `action` field — Claude reads the natural language de
 
 Legacy single-scenario format (without `cases`) is also supported for backward compatibility.
 
----
-
-### /aqa-gen
+#### /aqa-gen
 
 Interactive scenario generator that creates YAML test files through a guided Q&A process.
 
@@ -144,6 +145,39 @@ The command will ask you:
 
 ---
 
+### ship — PR Workflow Automation
+
+Automates pull request creation with AI-generated descriptions.
+
+#### /pr
+
+**Features:**
+- Analyzes full commit history (not just latest commit)
+- Generates structured PR title and description
+- Pushes branch and creates PR via `gh` CLI
+- Conventional commit style PR titles
+- Draft PR support
+
+**Usage:**
+
+```
+/pr                        # PR to main
+/pr --base develop         # PR to develop
+/pr --draft                # Draft PR to main
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--base <branch>` | main | Base branch to compare against |
+| `--draft` | No | Create as draft PR |
+
+**Prerequisites:**
+- [GitHub CLI](https://cli.github.com/) installed and authenticated (`gh auth login`)
+
+---
+
 ## Structure
 
 ```
@@ -151,16 +185,24 @@ claude-toolkit/
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin metadata
 │   └── marketplace.json   # Marketplace catalog
-├── commands/
-│   ├── aqa-run.md         # /aqa-run command
-│   └── aqa-gen.md         # /aqa-gen command
-└── skills/
-    ├── aqa-run/
-    │   ├── SKILL.md
-    │   └── references/
-    │       └── report-template.html
-    └── aqa-gen/
-        └── SKILL.md
+└── plugins/
+    ├── aqa/               # AI Quality Assurance
+    │   ├── commands/
+    │   │   ├── aqa-run.md
+    │   │   └── aqa-gen.md
+    │   └── skills/
+    │       ├── aqa-run/
+    │       │   ├── SKILL.md
+    │       │   └── references/
+    │       │       └── report-template.html
+    │       └── aqa-gen/
+    │           └── SKILL.md
+    └── ship/              # PR Workflow
+        ├── commands/
+        │   └── pr.md
+        └── skills/
+            └── pr/
+                └── SKILL.md
 ```
 
 ## License

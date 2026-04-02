@@ -1,16 +1,16 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-toolkit",
-  "description": "AI-powered QA automation skills for Claude Code — run YAML test scenarios via browser-use and generate test scenario files interactively.",
+  "name": "ten1010-io",
+  "description": "Official Claude Code plugins by TEN.",
   "owner": {
     "name": "ten1010-io",
     "email": ""
   },
   "plugins": [
     {
-      "name": "claude-toolkit",
-      "source": "./",
-      "description": "QA automation toolkit — /aqa-run executes YAML test scenarios via browser-use with HTML reports, /aqa-gen interactively generates YAML scenario files with auto error cases.",
+      "name": "aqa",
+      "source": "./plugins/aqa",
+      "description": "AI Quality Assurance toolkit — /aqa-run executes YAML test scenarios via browser-use with HTML reports, /aqa-gen interactively generates YAML scenario files with auto error cases.",
       "version": "0.1.0",
       "author": {
         "name": "ten1010-io"
@@ -32,6 +32,32 @@
         "browser-automation",
         "yaml",
         "scenarios"
+      ],
+      "strict": false
+    },
+    {
+      "name": "ship",
+      "source": "./plugins/ship",
+      "description": "Ship your work — generate PR descriptions from changes and push to remote.",
+      "version": "0.1.0",
+      "author": {
+        "name": "ten1010-io"
+      },
+      "homepage": "https://github.com/ten1010-io/claude-toolkit",
+      "repository": "https://github.com/ten1010-io/claude-toolkit",
+      "license": "MIT",
+      "keywords": [
+        "pr",
+        "pull-request",
+        "git",
+        "workflow"
+      ],
+      "category": "workflow",
+      "tags": [
+        "pr",
+        "git",
+        "code-review",
+        "workflow"
       ],
       "strict": false
     }

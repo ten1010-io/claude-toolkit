@@ -40,9 +40,15 @@ git remote -v
 
 ### Step 2: Determine base branch
 
-- Default base branch: `main`
-- If `--base` option is provided, use that instead
-- Verify the base branch exists: `git rev-parse --verify <base>`
+Resolve the base branch in this priority order:
+1. If `--base` option is provided, use that
+2. Otherwise, auto-detect the remote default branch:
+   ```bash
+   git remote show origin | grep 'HEAD branch' | sed 's/.*: //'
+   ```
+3. If auto-detect fails, fall back to `main`
+
+Verify the resolved base branch exists: `git rev-parse --verify <base>`
 
 ### Step 3: Analyze changes
 

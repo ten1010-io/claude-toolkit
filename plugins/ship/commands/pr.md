@@ -16,7 +16,7 @@ Analyzes all commits on the current branch (vs base branch), generates a PR titl
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--base <branch>` | main | Base branch to compare against |
+| `--base <branch>` | auto-detect | Base branch to compare against (auto-detects remote default branch) |
 | `--draft` | No | Create as draft PR |
 
 ## Examples

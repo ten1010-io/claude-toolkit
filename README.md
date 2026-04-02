@@ -10,7 +10,7 @@ By [Ten](https://github.com/ten1010-io) — Claude Code plugins for developer pr
 
 # Step 2: Install the plugin you need
 /plugin install aqa@ten1010-io          # AI Quality Assurance
-/plugin install ship@ten1010-io         # PR workflow automation
+/plugin install ship@ten1010-io         # Code shipping & delivery workflow
 ```
 
 ## Plugins

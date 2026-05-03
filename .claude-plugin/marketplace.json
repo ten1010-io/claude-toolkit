@@ -8,10 +8,10 @@
   },
   "plugins": [
     {
-      "name": "aqa",
-      "source": "./plugins/aqa",
-      "description": "AI Quality Assurance toolkit — /aqa-run executes YAML test scenarios via browser-use with HTML reports, /aqa-gen interactively generates YAML scenario files with auto error cases.",
-      "version": "0.1.0",
+      "name": "claude-toolkit",
+      "source": ".",
+      "description": "AI-powered QA automation and Git workflow toolkit. /aqa-gen generates YAML test scenarios via Q&A, /aqa-smart auto-generates scenarios from Figma designs, /aqa-run executes scenarios via browser-use with HTML reports, /pr creates pull requests, /merge-check does dry-run merge validation.",
+      "version": "0.2.0",
       "author": {
         "name": "ten1010-io"
       },
@@ -23,7 +23,10 @@
         "automation",
         "browser-use",
         "testing",
-        "yaml"
+        "yaml",
+        "figma",
+        "pr",
+        "git"
       ],
       "category": "workflow",
       "tags": [
@@ -31,32 +34,9 @@
         "testing",
         "browser-automation",
         "yaml",
-        "scenarios"
-      ],
-      "strict": false
-    },
-    {
-      "name": "ship",
-      "source": "./plugins/ship",
-      "description": "Code shipping & delivery workflow — PR creation, release notes, and more.",
-      "version": "0.1.0",
-      "author": {
-        "name": "ten1010-io"
-      },
-      "homepage": "https://github.com/ten1010-io/claude-toolkit",
-      "repository": "https://github.com/ten1010-io/claude-toolkit",
-      "license": "MIT",
-      "keywords": [
-        "pr",
-        "pull-request",
-        "git",
-        "workflow"
-      ],
-      "category": "workflow",
-      "tags": [
+        "figma",
         "pr",
         "git",
-        "code-review",
         "workflow"
       ],
       "strict": false

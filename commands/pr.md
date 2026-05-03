@@ -34,3 +34,8 @@ Analyzes all commits on the current branch (vs base branch), generates a PR titl
 3. Generates PR title (< 70 chars) and structured description
 4. Pushes branch to remote with `-u` flag
 5. Creates PR via `gh pr create`
+
+## Implementation
+
+This command is powered by the skill at `skills/pr/SKILL.md`.
+Read that file for the full workflow.

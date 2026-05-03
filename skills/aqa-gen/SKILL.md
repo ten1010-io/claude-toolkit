@@ -236,22 +236,9 @@ cases:
       - action: "{Natural language action description}"
     cleanup:
       - type: clear_cookies
-
-  - name: "{Error Case 2 Name}"
-    priority: medium
-    expected_result: "fail"
-    test_data:
-      BASE_URL: "{base_url}"
-      {key}: "{modified value}"
-    steps:
-      - action: "{Natural language action description}"
-    cleanup:
-      - type: clear_cookies
 ```
 
 #### Single Case Structure (success only, no error cases)
-
-Even without error cases, use the `cases` structure for consistency.
 
 ```yaml
 name: "{Feature Name}"

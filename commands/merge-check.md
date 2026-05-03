@@ -31,3 +31,8 @@ Pulls the latest target branch and performs a dry-run merge to check for conflic
 2. Attempts a dry-run merge (no actual commit)
 3. Reports conflicts or clean merge status
 4. Shows changed file summary between branches
+
+## Implementation
+
+This command is powered by the skill at `skills/merge-check/SKILL.md`.
+Read that file for the full workflow.

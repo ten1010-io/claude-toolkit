@@ -61,16 +61,15 @@ git diff <base>...HEAD
 ```
 
 - Read the full commit history since the branch diverged
-- Understand the scope and nature of all changes (not just the latest commit)
+- Understand the scope and nature of all changes
 - Identify: new features, bug fixes, refactors, tests, docs, etc.
 
 ### Step 4: Generate PR content
 
 **Title** (< 70 chars):
 - Use conventional commit style prefix: `feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`
-- Focus on the "what" — concise and specific
 
-**Body** — use this structure:
+**Body:**
 
 ```markdown
 ## Summary
@@ -87,38 +86,24 @@ git diff <base>...HEAD
 ```
 
 **Sequence Diagram rules:**
-- Analyze the diff to identify added or modified interactions between components (e.g., controller → service → repository → external API)
-- Draw a mermaid `sequenceDiagram` showing the flow of the changed logic
-- If multiple independent flows were changed, include separate diagrams for each
-- Only include diagrams when the changes involve meaningful interactions between 2+ components — skip for config-only, docs-only, or single-file utility changes
-- Use the actual class/module names from the code as participants
+- Only include when changes involve meaningful interactions between 2+ components
+- Use actual class/module names from the code as participants
 
 ### Step 5: Push and create PR
 
-1. Push the branch to remote:
-   ```bash
-   git push -u origin <current-branch>
-   ```
+```bash
+git push -u origin <current-branch>
+gh pr create --title "<title>" --body "<body>"
+```
 
-2. Create the PR:
-   ```bash
-   gh pr create --title "<title>" --body "<body>"
-   ```
-   - If `--draft` flag was given, add `--draft` to the command
-   - If `--base` was specified, add `--base <branch>`
-
-3. After creation, output the PR URL to the user.
+Add `--draft` if flag given. Add `--base <branch>` if specified.
 
 ### Step 6: Report result
 
-Show the user:
-- PR URL
-- PR title
-- Summary of what was included
+Show PR URL, title, and summary.
 
 ## Error handling
 
-- If `gh` CLI is not installed, tell the user to install it: `brew install gh`
-- If not authenticated, tell the user to run `gh auth login`
-- If push fails, show the error and suggest resolution
-- If on main/master branch, refuse and ask the user to create a feature branch first
+- `gh` not installed → `brew install gh`
+- Not authenticated → `gh auth login`
+- On main/master → refuse and ask to create a feature branch

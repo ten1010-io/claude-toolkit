@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "ten1010-io",
-  "description": "Official Claude Code plugins by TEN.",
+  "name": "claude-toolkit",
+  "description": "AI-powered QA automation and Git workflow toolkit for Claude Code.",
   "owner": {
     "name": "ten1010-io",
     "email": ""

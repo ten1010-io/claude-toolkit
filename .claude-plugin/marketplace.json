@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "claude-toolkit",
+  "name": "ten1010-io",
   "description": "AI-powered QA automation and Git workflow toolkit for Claude Code.",
   "owner": {
     "name": "ten1010-io",
@@ -10,8 +10,8 @@
     {
       "name": "claude-toolkit",
       "source": {
-        "source": "url",
-        "url": "https://github.com/ten1010-io/claude-toolkit.git"
+        "source": "github",
+        "repo": "ten1010-io/claude-toolkit"
       },
       "description": "AI-powered QA automation and Git workflow toolkit. /aqa-gen generates YAML test scenarios via Q&A, /aqa-smart auto-generates scenarios from Figma designs, /aqa-run executes scenarios via browser-use with HTML reports, /pr creates pull requests, /merge-check does dry-run merge validation.",
       "version": "0.2.0",

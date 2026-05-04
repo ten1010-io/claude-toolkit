@@ -1,6 +1,6 @@
 # Claude Toolkit
 
-By [Ten](https://github.com/ten1010-io) — Claude Code plugins for developer productivity.
+By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation and Git workflow.
 
 ## Installation
 
@@ -8,121 +8,50 @@ By [Ten](https://github.com/ten1010-io) — Claude Code plugins for developer pr
 # Step 1: Add to marketplace
 /plugin marketplace add ten1010-io/claude-toolkit
 
-# Step 2: Install the plugin you need
-/plugin install aqa@ten1010-io          # AI Quality Assurance
-/plugin install ship@ten1010-io         # Code shipping & delivery workflow
+# Step 2: Install
+/plugin install claude-toolkit@ten1010-io
 ```
 
-## Plugins
+## Commands
 
-### aqa — AI Quality Assurance
+### /aqa-smart
 
-AI-driven QA automation that executes YAML test scenarios via browser-use CLI.
-
-#### /aqa-run
-
-**Features:**
-- YAML-based test scenario definition with `cases` structure (multiple test cases per file)
-- AI-powered element detection (no CSS selectors needed)
-- `expected_result: "fail"` support for error/negative test cases
-- Automatic SSL certificate warning bypass
-- Parallel execution with worker pool pattern
-- Optional screenshot capture (before/after per step)
-- HTML report + summary.json generation
-- Sensitive data masking in reports
-- browser-use CLI auto-detection (global, project venv, home venv)
+Analyzes a Figma design file to automatically generate YAML test scenarios, pauses for human review, then runs them against your live service.
 
 **Usage:**
 
 ```
-/aqa-run scenarios/auth/login.yaml
-/aqa-run scenarios/auth/                       # run all scenarios in directory
-/aqa-run scenarios/auth/login.yaml --headless  # headless mode
+/aqa-smart <figma_url> <target_url> [options]
 ```
 
 **Options:**
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--headed` | Yes | Run with a visible browser window |
-| `--headless` | No | Run in headless mode (no browser UI) |
-| `--screenshot` | Off | Capture before/after screenshots for every step |
-| `--parallel N` | 2 | Run N cases concurrently in separate browser sessions |
+| `--headed` | Yes | Run browser with visible window |
+| `--headless` | No | Run in headless mode |
+| `--screenshot` | Off | Capture before/after screenshots per step |
+| `--parallel N` | 2 | Run N cases concurrently |
+| `--save <path>` | `scenarios/` | Directory to save generated YAML |
+
+**Examples:**
 
 ```
-# Fast run (default): no screenshots, 2 cases in parallel
-/aqa-run login.yaml
-
-# With screenshots
-/aqa-run login.yaml --screenshot
-
-# Run 4 cases in parallel, headless
-/aqa-run login.yaml --parallel 4 --headless
-
-# Sequential execution (1 at a time)
-/aqa-run login.yaml --parallel 1
+/aqa-smart https://www.figma.com/file/xxx/Login https://app.example.com
+/aqa-smart https://www.figma.com/file/xxx/Login https://app.example.com --headless
+/aqa-smart https://www.figma.com/file/xxx/Dashboard https://app.example.com --screenshot --save scenarios/dashboard/
 ```
 
-> **Note:** When running in parallel, resource-creating values (e.g., project names) are automatically suffixed with `_1`, `_2`, etc. to avoid conflicts between concurrent cases.
+**Prerequisites:**
+- Figma Personal Access Token — generate at: Figma → Profile → Settings → Security → Personal access tokens
+- Save token to `.env`: `FIGMA_ACCESS_TOKEN=figd_xxxxxxxx` (or the command will ask you)
+- [browser-use](https://github.com/browser-use/browser-use) CLI installed (uv venv + Python 3.12 recommended)
 
-**Scenario format:**
+---
 
-```yaml
-name: "Login"
-description: "Verify login functionality"
-tags: [auth, smoke]
-
-cases:
-  - name: "Successful login"
-    priority: critical
-    expected_result: "pass"
-    test_data:
-      BASE_URL: "https://example.com"
-      username: "testuser"
-      password: "secret"
-    steps:
-      - action: "${BASE_URL}/login 페이지로 이동"
-      - action: "아이디 입력란에 ${username} 입력"
-      - action: "비밀번호 입력란에 ${password} 입력"
-        sensitive: true
-      - action: "로그인 버튼 클릭"
-      - action: "Dashboard 텍스트가 보이는지 확인"
-    cleanup:
-      - type: clear_cookies
-
-  - name: "Wrong password"
-    priority: high
-    expected_result: "fail"
-    test_data:
-      BASE_URL: "https://example.com"
-      username: "testuser"
-      password: "wrongpassword"
-    steps:
-      - action: "${BASE_URL}/login 페이지로 이동"
-      - action: "아이디 입력란에 ${username} 입력"
-      - action: "비밀번호 입력란에 ${password} 입력"
-        sensitive: true
-      - action: "로그인 버튼 클릭"
-      - action: "에러 메시지가 표시되는지 확인"
-    cleanup:
-      - type: clear_cookies
-```
-
-Each step only needs the `action` field — Claude reads the natural language description and determines the appropriate browser commands automatically. All variables including `BASE_URL` must be defined in `test_data`.
-
-Legacy single-scenario format (without `cases`) is also supported for backward compatibility.
-
-#### /aqa-gen
+### /aqa-gen
 
 Interactive scenario generator that creates YAML test files through a guided Q&A process.
-
-**Features:**
-- Step-by-step guided input collection
-- `BASE_URL` automatically saved into `test_data` (no re-entry needed on re-run)
-- Login precondition support (auto-prepends login steps to every case)
-- Automatic error case generation based on feature type (login, signup, search, form submission)
-- Auto-generated tags from feature name/description
-- Multi-language support (responds in the user's language)
 
 **Usage:**
 
@@ -145,36 +74,121 @@ The command will ask you:
 
 ---
 
-### ship — PR Workflow Automation
+### /aqa-run
 
-Automates pull request creation with AI-generated descriptions.
-
-#### /pr
-
-**Features:**
-- Analyzes full commit history (not just latest commit)
-- Generates structured PR title and description
-- Pushes branch and creates PR via `gh` CLI
-- Conventional commit style PR titles
-- Draft PR support
+Executes YAML test scenarios via browser-use CLI and generates HTML reports.
 
 **Usage:**
 
 ```
-/pr                        # PR to main
-/pr --base develop         # PR to develop
-/pr --draft                # Draft PR to main
+/aqa-run <scenario_path> [options]
 ```
 
 **Options:**
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--base <branch>` | main | Base branch to compare against |
+| `--headed` | Yes | Run with a visible browser window |
+| `--headless` | No | Run in headless mode |
+| `--screenshot` | Off | Capture before/after screenshots per step |
+| `--parallel N` | 2 | Run N cases concurrently |
+
+**Examples:**
+
+```
+/aqa-run scenarios/auth/login.yaml
+/aqa-run scenarios/auth/                        # run all scenarios in directory
+/aqa-run scenarios/auth/login.yaml --headless
+/aqa-run scenarios/auth/login.yaml --screenshot --parallel 4
+```
+
+**Scenario format:**
+
+```yaml
+name: "Login"
+description: "Verify login functionality"
+tags: [auth, smoke]
+
+cases:
+  - name: "Successful login"
+    priority: critical
+    expected_result: "pass"
+    test_data:
+      BASE_URL: "https://example.com"
+      username: "testuser"
+      password: "secret"
+    steps:
+      - action: "Navigate to ${BASE_URL}/login"
+      - action: "Enter ${username} in the ID input field"
+      - action: "Enter ${password} in the password field"
+        sensitive: true
+      - action: "Click the login button"
+      - action: "Verify that Dashboard text is visible"
+    cleanup:
+      - type: clear_cookies
+
+  - name: "Wrong password"
+    priority: high
+    expected_result: "fail"
+    test_data:
+      BASE_URL: "https://example.com"
+      username: "testuser"
+      password: "wrongpassword"
+    steps:
+      - action: "Navigate to ${BASE_URL}/login"
+      - action: "Enter ${username} in the ID input field"
+      - action: "Enter ${password} in the password field"
+        sensitive: true
+      - action: "Click the login button"
+      - action: "Verify that an error message is displayed"
+    cleanup:
+      - type: clear_cookies
+```
+
+Each step only needs the `action` field — Claude reads the natural language and determines the appropriate browser commands automatically.
+
+**Prerequisites:**
+- [browser-use](https://github.com/browser-use/browser-use) CLI installed (uv venv + Python 3.12 recommended)
+
+---
+
+### /pr
+
+Analyzes branch changes, generates a PR title and description, then pushes and creates the PR.
+
+**Usage:**
+
+```
+/pr [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--base <branch>` | auto-detect | Base branch to compare against |
 | `--draft` | No | Create as draft PR |
 
 **Prerequisites:**
 - [GitHub CLI](https://cli.github.com/) installed and authenticated (`gh auth login`)
+
+---
+
+### /merge-check
+
+Dry-run merge check — fetches the latest target branch and tests if the current branch can merge cleanly.
+
+**Usage:**
+
+```
+/merge-check [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--target <branch>` | auto-detect | Target branch to merge into |
 
 ---
 
@@ -185,24 +199,25 @@ claude-toolkit/
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin metadata
 │   └── marketplace.json   # Marketplace catalog
-└── plugins/
-    ├── aqa/               # AI Quality Assurance
-    │   ├── commands/
-    │   │   ├── aqa-run.md
-    │   │   └── aqa-gen.md
-    │   └── skills/
-    │       ├── aqa-run/
-    │       │   ├── SKILL.md
-    │       │   └── references/
-    │       │       └── report-template.html
-    │       └── aqa-gen/
-    │           └── SKILL.md
-    └── ship/              # PR Workflow
-        ├── commands/
-        │   └── pr.md
-        └── skills/
-            └── pr/
-                └── SKILL.md
+├── commands/
+│   ├── aqa-smart.md
+│   ├── aqa-gen.md
+│   ├── aqa-run.md
+│   ├── pr.md
+│   └── merge-check.md
+└── skills/
+    ├── aqa-smart/
+    │   └── SKILL.md
+    ├── aqa-gen/
+    │   └── SKILL.md
+    ├── aqa-run/
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── report-template.html
+    ├── pr/
+    │   └── SKILL.md
+    └── merge-check/
+        └── SKILL.md
 ```
 
 ## License

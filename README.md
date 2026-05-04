@@ -14,63 +14,48 @@ By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered 
 
 ## Commands
 
-### /aqa-smart
+### /aqa-spec
 
-Analyzes a Figma design file to automatically generate YAML test scenarios, pauses for human review, then runs them against your live service.
+Generates YAML test scenarios. Default mode is an interactive Q&A; pass `--figma <url>` (or `-f <url>`) to auto-generate from a Figma design instead.
 
 **Usage:**
 
 ```
-/aqa-smart <figma_url> <target_url> [options]
+/aqa-spec [--figma <url> | -f <url>] [--target <url>] [--save <path>]
 ```
 
-**Options:**
+**Arguments:**
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| `--headed` | Yes | Run browser with visible window |
-| `--headless` | No | Run in headless mode |
-| `--screenshot` | Off | Capture before/after screenshots per step |
-| `--parallel N` | 2 | Run N cases concurrently |
-| `--save <path>` | `scenarios/` | Directory to save generated YAML |
+| Flag | Q&A mode | Figma mode | Description |
+|---|---|---|---|
+| `--figma <url>` / `-f <url>` | — | required | Figma file or frame URL |
+| `--target <url>` | optional | required | Live service URL — saved as `BASE_URL` in the YAML |
+| `--save <path>` | optional | optional (default `scenarios/`) | Save directory or full file path |
 
 **Examples:**
 
 ```
-/aqa-smart https://www.figma.com/file/xxx/Login https://app.example.com
-/aqa-smart https://www.figma.com/file/xxx/Login https://app.example.com --headless
-/aqa-smart https://www.figma.com/file/xxx/Dashboard https://app.example.com --screenshot --save scenarios/dashboard/
+# Q&A mode — fully interactive
+/aqa-spec
+
+# Q&A mode with target preset
+/aqa-spec --target https://app.example.com
+
+# Figma mode (long flag)
+/aqa-spec --figma https://www.figma.com/file/xxx/Login --target https://app.example.com
+
+# Figma mode (short flag) with custom save dir
+/aqa-spec -f https://www.figma.com/file/xxx/Dashboard --target https://app.example.com --save scenarios/dashboard/
 ```
+
+**Behavior:**
+
+- **Q&A mode** asks for feature name, description, login requirement, target URL, test data, success steps, error case strategy, and save path, then saves the YAML directly.
+- **Figma mode** fetches the Figma file, analyzes UI components and flows, drafts the YAML, and **pauses for human review** (`ok` / `edit` / `cancel`) before saving.
+- Both modes finish by suggesting the next command: `/aqa-run <path>`. Execution is the responsibility of `/aqa-run` — `/aqa-spec` never runs scenarios.
 
 **Prerequisites:**
-- Figma Personal Access Token — generate at: Figma → Profile → Settings → Security → Personal access tokens
-- Save token to `.env`: `FIGMA_ACCESS_TOKEN=figd_xxxxxxxx` (or the command will ask you)
-- [browser-use](https://github.com/browser-use/browser-use) CLI installed (uv venv + Python 3.12 recommended)
-
----
-
-### /aqa-gen
-
-Interactive scenario generator that creates YAML test files through a guided Q&A process.
-
-**Usage:**
-
-```
-/aqa-gen
-```
-
-The command will ask you:
-1. Feature name (e.g., Login, Signup)
-2. Description
-3. Login required? (auto-prepends login steps if yes)
-4. Target page URL (BASE_URL is extracted and saved automatically)
-5. Test data for the success case
-6. Steps for the success case
-7. Whether to auto-generate error cases
-8. Save path
-
-**Prerequisites:**
-- [browser-use](https://github.com/browser-use/browser-use) CLI installed (uv venv + Python 3.12 recommended)
+- For Figma mode: Figma Personal Access Token (Figma → Profile → Settings → Security → Personal access tokens). Save to `.env`: `FIGMA_ACCESS_TOKEN=figd_xxxxxxxx` (or the command will ask).
 
 ---
 
@@ -200,15 +185,12 @@ claude-toolkit/
 │   ├── plugin.json        # Plugin metadata
 │   └── marketplace.json   # Marketplace catalog
 ├── commands/
-│   ├── aqa-smart.md
-│   ├── aqa-gen.md
+│   ├── aqa-spec.md
 │   ├── aqa-run.md
 │   ├── pr.md
 │   └── merge-check.md
 └── skills/
-    ├── aqa-smart/
-    │   └── SKILL.md
-    ├── aqa-gen/
+    ├── aqa-spec/
     │   └── SKILL.md
     ├── aqa-run/
     │   ├── SKILL.md

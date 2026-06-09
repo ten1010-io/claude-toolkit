@@ -25,7 +25,7 @@ case_id, name, status, tester, finished_at, failure_reason, expected_vs_actual, 
 | `finished_at` | case completion time | per case | ISO-8601 |
 | `failure_reason` | why it failed | when `fail` | free text, else empty |
 | `expected_vs_actual` | expected vs observed | when `fail`/`needs_discussion` | free text |
-| `evidence_path` | screenshot/log path | when `--screenshot` or on fail | relative path |
+| `evidence_path` | screenshot/log path | when `--screenshot` or on fail | relative path under `artifacts/{case_id}/`, e.g. `artifacts/login-002/step-4.png` |
 | `discuss_note` | why ambiguous | when `needs_discussion` | free text |
 | `jira_key` | created ticket | by `aqa-jira` | e.g. `PROJ-123`, else empty |
 
@@ -44,8 +44,8 @@ A 3-row example (one `pass`, one `fail`, one `needs_discussion`):
 ```csv
 case_id,name,status,tester,finished_at,failure_reason,expected_vs_actual,evidence_path,discuss_note,jira_key
 login-001,Login with valid credentials,pass,alice,2026-06-10T09:15:00Z,,,,,
-login-002,"Login, wrong password",fail,alice,2026-06-10T09:16:30Z,"Error toast never appeared","Expected: ""Invalid password"" toast; Actual: page reloaded silently",evidence/login-002.png,,PROJ-123
-checkout-007,Apply expired coupon at checkout,needs_discussion,bob,2026-06-10T09:20:10Z,,"Expected: coupon rejected; Actual: 0% discount applied with no message",evidence/checkout-007.png,Spec unclear whether expired coupon should error or silently no-op,
+login-002,"Login, wrong password",fail,alice,2026-06-10T09:16:30Z,"Error toast never appeared","Expected: ""Invalid password"" toast; Actual: page reloaded silently",artifacts/login-002/step-4.png,,PROJ-123
+checkout-007,Apply expired coupon at checkout,needs_discussion,bob,2026-06-10T09:20:10Z,,"Expected: coupon rejected; Actual: 0% discount applied with no message",artifacts/checkout-007/step-3.png,Spec unclear whether expired coupon should error or silently no-op,
 ```
 
 Notes on the example:

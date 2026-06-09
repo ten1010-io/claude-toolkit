@@ -44,7 +44,9 @@ If `--tester <name>` was passed, use it. Otherwise ask the user **once** at the 
 
 ### 2. Generate cases → `cases.yaml`
 
-Decide the generation path from the arguments:
+**On `--rerun-failed` / `--resume`, SKIP this entire step — including the human-review gate.** Reuse the existing `cases.yaml` from the report dir **as-is**; do NOT regenerate. Regenerating would change `case_id`s and break the rerun match against the existing `results.csv`. Jump straight to Step 3.
+
+Otherwise (fresh run), decide the generation path from the arguments:
 
 - If `--figma <url>` is present → follow `references/generate-figma.md`. (`--target <url>` is required there for `BASE_URL`; ask for it if missing.)
 - Otherwise → require `--target <url>` and follow `references/generate-explore.md`. If `--target` is missing, ask for it before proceeding.
@@ -56,7 +58,10 @@ Both paths emit `cases.yaml` in the **AQA "Format A"** schema (the `cases:` stru
 ### 3. Create / reuse the report directory
 
 - **Fresh run:** create `reports/{YYYY-MM-DD_HH-MM-SS}/`.
-- **`--resume <dir>` or `--rerun-failed`:** reuse that directory (for `--rerun-failed`, the most recent `reports/*` dir). Read its existing `results.csv`, **skip** rows with `status=pass`, and re-run only rows with `status=fail` or `status=needs_discussion`. Update those rows in place; preserve untouched `pass` rows.
+- **`--resume <dir>`:** reuse the given directory.
+- **`--rerun-failed`:** reuse the **most recent** report dir — the latest `reports/{timestamp}/` by directory name (the `YYYY-MM-DD_HH-MM-SS` timestamp sorts lexically, so the lexically-largest name is the newest).
+
+In both reuse modes: read the existing `cases.yaml` and `results.csv` from that dir, **skip** rows with `status=pass`, and re-run only rows with `status=fail` or `status=needs_discussion`. **Match each re-run case to its existing `results.csv` row by `case_id`; update that row IN PLACE, never append a duplicate.** Preserve untouched `pass` rows.
 
 ### 4. Execute via the selected engine
 
@@ -84,6 +89,8 @@ Read `references/report-template.html` and render it to `report.html` in the rep
 
 - **Run-global tokens `{{UPPER}}`:** `{{META_EXECUTED_AT}}`, `{{META_BASE_URL}}`, `{{META_ENGINE}}`, `{{META_BROWSER}}`, `{{META_COMMIT_HASH}}`, `{{TOTAL}}`, `{{PASSED}}`, `{{FAILED}}`, `{{NEEDS_DISCUSSION}}`.
 - **Per-case row tokens `{lower}`** (substituted once per `results.csv` row): `{case_name}`, `{status}`, `{STATUS}`, `{tester}`, `{finished_at}`, `{failure_reason}`, `{expected_vs_actual}`, `{discuss_note}`, `{evidence_path}`, `{case_id}`, `{jira_key}`.
+
+**Omit empty detail blocks.** When a field is empty, OMIT its entire detail block — do NOT emit an empty "Failure Reason" / "Expected vs Actual" / "Discussion Note" / "Jira" section, and do NOT emit a broken `<img src="">` with no `evidence_path`. The template marks each conditional block with an HTML comment (e.g. `<!-- On fail: ... -->`, `<!-- Evidence: show only when evidence_path is set -->`, `<!-- Jira: show only when jira_key is set -->`) — honor those markers and drop the block when its field is empty. `evidence_path` is a relative path under `artifacts/{case_id}/`, which resolves against the report dir for both engines.
 
 ### 7. Print summary
 

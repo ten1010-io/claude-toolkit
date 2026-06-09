@@ -137,6 +137,81 @@ Each step only needs the `action` field — Claude reads the natural language an
 
 ---
 
+### /aqa-inspect
+
+End-to-end AI QA in one command — **generates** test cases (from a Figma design or by exploring a live URL), **executes** them with a selectable engine, **tracks** per-case results into `results.csv`, and **renders** an HTML report. Never creates Jira tickets — filing is handled separately by `/aqa-jira`.
+
+**Usage:**
+
+```
+/aqa-inspect [--figma <url> | -f <url>] [--target <url>] [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--figma <url>` / `-f <url>` | — | Figma file or frame URL — cases generated from the design |
+| `--target <url>` | — | Live service URL — required when `--figma` is absent (exploration mode); stored as `BASE_URL` |
+| `--engine browser-use\|playwright` | `browser-use` | Execution engine: `browser-use` (AI screenshots) or `playwright` (DOM) |
+
+**Examples:**
+
+```
+/aqa-inspect --target https://app.example.com
+/aqa-inspect --figma https://www.figma.com/file/xxx/Login --target https://app.example.com
+/aqa-inspect --target https://app.example.com --engine playwright
+```
+
+**Output:** a report directory containing `results.csv` (per-case `status`: `pass` / `fail` / `needs_discussion`, plus tester, time, reasons) and `report.html`.
+
+**Prerequisites:**
+- [browser-use](https://github.com/browser-use/browser-use) CLI (browser-use engine) or [Playwright](https://playwright.dev/) (playwright engine)
+- For Figma mode: `FIGMA_ACCESS_TOKEN` in `.env`
+
+---
+
+### /aqa-jira
+
+Reads the `results.csv` produced by `/aqa-inspect`, drafts a Jira ticket for each **failed** case (failure details + screenshots), dedups against existing tickets, and — only after explicit human approval — creates the tickets and writes each returned ticket key back into `results.csv`. Reads `status=fail` rows ONLY; `pass` and `needs_discussion` are never ticketed. This command never runs tests.
+
+**Usage:**
+
+```
+/aqa-jira (--results <path> | <reports_dir>) [options]
+```
+
+**Options:**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--results <path>` | — | Path to the `results.csv` to read |
+| `<reports_dir>` (positional) | — | A report directory; locates `results.csv` inside it (use this OR `--results`) |
+| `--project <KEY>` | ask | Target Jira project key (e.g. `PROJ`) — asks if absent |
+
+**Prerequisites:**
+- Atlassian/Jira MCP connection (for creating tickets)
+- A `results.csv` produced by a prior `/aqa-inspect` run
+
+---
+
+### QA Pipeline
+
+The two `aqa-inspect` and `aqa-jira` commands form a human-gated QA pipeline:
+
+```
+/aqa-inspect          →   human review        →   /aqa-jira
+(generate → run →         (read report.html,      (fail rows → Jira
+ results.csv +            confirm fail rows)       tickets, approval-gated)
+ report.html)
+```
+
+1. **`/aqa-inspect`** — generates and runs test cases, writing `results.csv` (with `pass` / `fail` / `needs_discussion` per case) and an HTML report.
+2. **Human review** — a person reads the report, confirms which `fail` rows are genuine, and resolves any `needs_discussion` cases.
+3. **`/aqa-jira`** — reads the `fail` rows from `results.csv` and, behind an explicit approval gate, files Jira tickets, writing each ticket key back into `results.csv`.
+
+---
+
 ### /pr
 
 Analyzes branch changes, generates a PR title and description, then pushes and creates the PR.
@@ -187,6 +262,8 @@ claude-toolkit/
 ├── commands/
 │   ├── aqa-spec.md
 │   ├── aqa-run.md
+│   ├── aqa-inspect.md
+│   ├── aqa-jira.md
 │   ├── pr.md
 │   └── merge-check.md
 └── skills/
@@ -196,6 +273,12 @@ claude-toolkit/
     │   ├── SKILL.md
     │   └── references/
     │       └── report-template.html
+    ├── aqa-inspect/
+    │   ├── SKILL.md
+    │   └── references/
+    ├── aqa-jira/
+    │   ├── SKILL.md
+    │   └── references/
     ├── pr/
     │   └── SKILL.md
     └── merge-check/

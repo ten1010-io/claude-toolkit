@@ -45,7 +45,7 @@ Runs the full QA loop in one command: **generate** test cases, **execute** them 
 /aqa-inspect --target https://app.example.com --screenshot --tester joonseo
 
 # Re-run only failed cases from a previous run
-/aqa-inspect --resume reports/2026-06-10-app/ --rerun-failed
+/aqa-inspect --resume reports/2026-06-10_14-30-00/ --rerun-failed
 ```
 
 ## Implementation

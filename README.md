@@ -163,7 +163,7 @@ End-to-end AI QA in one command — **generates** test cases (from a Figma desig
 /aqa-inspect --target https://app.example.com --engine playwright
 ```
 
-**Output:** a report directory containing `results.csv` (per-case `status`: `pass` / `fail` / `needs_discussion`, plus tester, time, reasons) and `report.html`.
+**Output:** a report directory containing `results.csv` (per-case `status`: `pass` / `fail` / `needs_discussion`, plus tester, time, reasons), `summary.json` (run metadata + counts), and `report.html`.
 
 **Prerequisites:**
 - [browser-use](https://github.com/browser-use/browser-use) CLI (browser-use engine) or [Playwright](https://playwright.dev/) (playwright engine)

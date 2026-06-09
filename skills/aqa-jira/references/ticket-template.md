@@ -8,7 +8,7 @@ Per fail row, the mapping reads:
 
 - From `results.csv` (see `references/csv-contract.md`): `case_id`, `name`, `failure_reason`, `expected_vs_actual`, `evidence_path`, `tester`, `finished_at`, `jira_key`.
 - From the run's `cases.yaml` (matched by `case_id`): the case `steps` (the natural-language step actions) and any `priority`.
-- From run metadata (captured by `aqa-inspect`, available in the report dir / `summary.json` / `report.html`): `engine`, `base_url`, `commit_hash`, and the `report.html` path.
+- From the run's `summary.json` in the report dir (written by `aqa-inspect`): `engine`, `base_url`, `commit_hash`, `executed_at`. Per-case `tester` and `finished_at` come from the case's `results.csv` row (above), not from `summary.json`. The `report.html` path is the report dir's `report.html`.
 
 If a row already has a non-empty `jira_key`, it was ticketed by a previous run — skip it and note the existing key (do not re-create).
 

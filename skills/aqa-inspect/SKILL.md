@@ -61,6 +61,16 @@ Both paths emit `cases.yaml` in the **AQA "Format A"** schema (the `cases:` stru
 - **`--resume <dir>`:** reuse the given directory.
 - **`--rerun-failed`:** reuse the **most recent** report dir — the latest `reports/{timestamp}/` by directory name (the `YYYY-MM-DD_HH-MM-SS` timestamp sorts lexically, so the lexically-largest name is the newest).
 
+The report dir holds these outputs:
+
+```
+reports/{YYYY-MM-DD_HH-MM-SS}/
+  artifacts/{case_id}/    ← only if --screenshot enabled
+  results.csv             ← per-case rows (see references/results-csv.md)
+  summary.json            ← run metadata + counts (written in Step 6)
+  report.html             ← rendered report (Step 6)
+```
+
 In both reuse modes: read the existing `cases.yaml` and `results.csv` from that dir, **skip** rows with `status=pass`, and re-run only rows with `status=fail` or `status=needs_discussion`. **Match each re-run case to its existing `results.csv` row by `case_id`; update that row IN PLACE, never append a duplicate.** Preserve untouched `pass` rows.
 
 ### 4. Execute via the selected engine
@@ -83,9 +93,26 @@ After execution, list **every** case with `status=needs_discussion` to the human
 
 This stage is **skippable** — if the user skips or leaves a case unresolved, it stays `needs_discussion` in `results.csv`.
 
-### 6. Render `report.html`
+### 6. Write `summary.json` + render `report.html`
 
-Read `references/report-template.html` and render it to `report.html` in the report dir. The template uses **two token styles** — fill **both**:
+First write `summary.json` to the report dir, capturing the run metadata (from Step 4) and the final counts from `results.csv` (after the Step 5 reclassification). This is the machine-readable run meta that `aqa-jira` reads; `report.html` is for humans only. Shape:
+
+```json
+{
+  "executed_at": "{ISO-8601 run start}",
+  "engine": "browser-use|playwright",
+  "base_url": "{base_url}",
+  "browser": "{browser used, e.g. Chromium headed}",
+  "commit_hash": "{git rev-parse --short HEAD, or empty}",
+  "tester": "{tester from Step 1}",
+  "total": N,
+  "passed": N,
+  "failed": N,
+  "needs_discussion": N
+}
+```
+
+Then read `references/report-template.html` and render it to `report.html` in the report dir. The template uses **two token styles** — fill **both**:
 
 - **Run-global tokens `{{UPPER}}`:** `{{META_EXECUTED_AT}}`, `{{META_BASE_URL}}`, `{{META_ENGINE}}`, `{{META_BROWSER}}`, `{{META_COMMIT_HASH}}`, `{{TOTAL}}`, `{{PASSED}}`, `{{FAILED}}`, `{{NEEDS_DISCUSSION}}`.
 - **Per-case row tokens `{lower}`** (substituted once per `results.csv` row): `{case_name}`, `{status}`, `{STATUS}`, `{tester}`, `{finished_at}`, `{failure_reason}`, `{expected_vs_actual}`, `{discuss_note}`, `{evidence_path}`, `{case_id}`, `{jira_key}`.
@@ -111,6 +138,15 @@ Report: reports/{timestamp}/report.html
 - `references/engine-browser-use.md` — browser-use engine contract: AI-interpreted session execution → `results.csv`.
 - `references/engine-playwright.md` — Playwright engine contract: runtime DOM resolution via a per-run `run-case.mjs` driver → `results.csv`.
 - `references/report-template.html` — HTML report template rendered in Step 6.
+
+## Outputs
+
+Each run writes into `reports/{YYYY-MM-DD_HH-MM-SS}/`:
+
+- `results.csv` — per-case rows (schema in `references/results-csv.md`).
+- `summary.json` — machine-readable run metadata + counts (`executed_at`, `engine`, `base_url`, `browser`, `commit_hash`, `tester`, `total`, `passed`, `failed`, `needs_discussion`). This is what `aqa-jira` reads for run metadata.
+- `report.html` — human-facing rendered report.
+- `artifacts/{case_id}/` — per-step screenshots (only with `--screenshot`).
 
 ## Notes
 

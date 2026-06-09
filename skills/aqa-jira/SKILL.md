@@ -38,7 +38,7 @@ Locate `results.csv` from `--results <path>` or the positional `<reports_dir>`. 
 
 ### 2. Build a draft per failure
 
-For each `fail` row, build a Jira ticket draft following `references/ticket-template.md` (summary, Jira-markup description with failure_reason + cases.yaml steps + expected_vs_actual + run info, and the `evidence_path` screenshot attachment).
+For each `fail` row, build a Jira ticket draft following `references/ticket-template.md` (summary, Jira-markup description with failure_reason + cases.yaml steps + expected_vs_actual + run info, and the `evidence_path` screenshot attachment). Run metadata (`engine`, `base_url`, `commit_hash`, `executed_at`) comes from the report dir's `summary.json`; per-case `tester` and `finished_at` come from the row's own `results.csv` columns.
 
 ### 3. Dedup against existing tickets
 
@@ -90,7 +90,7 @@ There is **no** file-upload/attachment tool in this toolset, so binary screensho
 ## References
 
 - `references/csv-contract.md` — authoritative `results.csv` schema (byte-identical copy of `aqa-inspect`'s contract); the input this skill reads and writes `jira_key` back into.
-- `references/ticket-template.md` — fail-row → Jira ticket mapping (summary, Markdown description body with inline evidence references) and the dedup JQL rule.
+- `references/ticket-template.md` — fail-row → Jira ticket mapping (summary, Markdown description body with inline evidence references) and the dedup JQL rule. Run metadata for the description is read from the report dir's `summary.json` (written by `aqa-inspect`).
 
 ## Notes
 

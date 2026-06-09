@@ -52,15 +52,16 @@ Use the Atlassian MCP JQL search tool (`searchJiraIssuesUsingJql`). If an open m
 
 ### 4. HUMAN GATE (mandatory)
 
-Present the full draft list to the user **before creating anything**: for each failure show its `summary` and whether it is **new** (will be created) or **skipped** (already ticketed — show the existing key). Then ask for **explicit approval** to proceed. Do NOT create, attach, or modify anything in Jira until the user explicitly approves. If the user declines or edits the list, honor that and re-confirm.
+Present the full draft list to the user **before creating anything**: for each failure show its `summary` and whether it is **new** (will be created) or **skipped** (already ticketed — show the existing key). Then ask for **explicit approval** to proceed. Do NOT create or modify anything in Jira until the user explicitly approves. If the user declines or edits the list, honor that and re-confirm.
 
-### 5. On approval, create + attach + write back
+### 5. On approval, create + write back
 
-For each **new** draft, in order:
+First resolve the `cloudId` once via the Atlassian MCP `getAccessibleAtlassianResources` tool — `createJiraIssue` requires `cloudId` (plus `projectKey`, `issueTypeName`, `summary`). Then, for each **new** draft, in order:
 
-1. Create the issue via the Atlassian MCP `createJiraIssue` tool (project = `--project`, issuetype = `--issue-type`, summary + description from the draft).
-2. If the row has an `evidence_path`, attach the screenshot(s) to the created issue via the Atlassian MCP attachment tool.
-3. Write the returned issue key into that row's `jira_key` column in `results.csv` and **save** the file (preserve all other rows and columns exactly; re-quote per the contract).
+1. Create the issue via the Atlassian MCP `createJiraIssue` tool (`cloudId` from above, `projectKey` = `--project`, `issueTypeName` = `--issue-type`, `summary` + `description` from the draft, `contentFormat: "markdown"`). The description already embeds the `evidence_path` + `report.html` references per `references/ticket-template.md`.
+2. Write the returned issue key into that row's `jira_key` column in `results.csv` and **save** the file (preserve all other rows and columns exactly; re-quote per the contract).
+
+Binary screenshot attachment is **not** done here: the current Atlassian MCP toolset has no file-upload/attachment tool. The evidence is referenced as text inside the description instead; a human can manually attach the screenshot to the ticket later if needed.
 
 For **skipped** rows where `jira_key` was empty, write the deduped existing key back into `jira_key` as well.
 
@@ -80,16 +81,16 @@ Skipped: PROJ-100 (<summary>), ...
 
 This skill uses the connected **Atlassian MCP** tools. Their schemas are not loaded up front — load them on demand at runtime via `ToolSearch` (e.g. `select:mcp__...__createJiraIssue`) before calling:
 
-- **`createJiraIssue`** — create each ticket (Step 5).
+- **`getAccessibleAtlassianResources`** — called **first** to resolve the `cloudId` required by `createJiraIssue` (Step 5).
 - **`searchJiraIssuesUsingJql`** — run the dedup JQL search (Step 3).
-- The Atlassian **attachment** tool — attach `evidence_path` screenshots to a created issue (Step 5).
+- **`createJiraIssue`** — create each ticket (Step 5). Requires `cloudId` + `projectKey` + `issueTypeName` + `summary`; pass the body as `description` with `contentFormat: "markdown"`.
 
-The skill only **documents** these tools; it does not call them outside the workflow above, and never before the human gate in Step 4.
+There is **no** file-upload/attachment tool in this toolset, so binary screenshots are NOT attached via MCP — the `evidence_path` is referenced as text inside the description instead. The skill only **documents** these tools; it does not call them outside the workflow above, and never before the human gate in Step 4.
 
 ## References
 
 - `references/csv-contract.md` — authoritative `results.csv` schema (byte-identical copy of `aqa-inspect`'s contract); the input this skill reads and writes `jira_key` back into.
-- `references/ticket-template.md` — fail-row → Jira ticket mapping (summary, description body, attachment) and the dedup JQL rule.
+- `references/ticket-template.md` — fail-row → Jira ticket mapping (summary, Markdown description body with inline evidence references) and the dedup JQL rule.
 
 ## Notes
 

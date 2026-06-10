@@ -1,6 +1,6 @@
 {
   "name": "claude-toolkit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "AI-powered QA automation and Git workflow tools for Claude Code.",
   "author": {
     "name": "ten1010-io",
@@ -19,6 +19,8 @@
     "scenarios",
     "figma",
     "pr",
-    "git"
+    "git",
+    "jira",
+    "playwright"
   ]
 }

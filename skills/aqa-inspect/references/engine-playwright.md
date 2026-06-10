@@ -3,9 +3,10 @@
 This reference defines how the **Playwright** execution engine runs a
 `cases.yaml` plan and populates `results.csv`. It is one of two interchangeable
 engines for `aqa-inspect`; the other is documented in `engine-browser-use.md`.
-Both engines consume the **same** `cases.yaml` (see `generate-figma.md` /
-`generate-explore.md`) and emit the **same** `results.csv` schema (see
-`results-csv.md`). The only difference is the runtime mechanism.
+Both engines consume the **same** `cases.yaml` (schema in `cases-yaml.md`;
+produced by `generate-figma.md` / `generate-explore.md`) and emit the **same**
+`results.csv` schema (see `results-csv.md`). The only difference is the runtime
+mechanism.
 
 The defining property of this engine: **selectors are NOT pre-baked in
 `cases.yaml`.** Each case carries only natural-language `steps`. This engine

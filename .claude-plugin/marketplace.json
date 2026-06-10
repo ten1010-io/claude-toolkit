@@ -13,7 +13,7 @@
         "source": "url",
         "url": "https://github.com/ten1010-io/claude-toolkit.git"
       },
-      "description": "AI-powered QA automation and Git workflow toolkit. /aqa-spec generates YAML test scenarios via Q&A or Figma analysis, /aqa-run executes scenarios via browser-use with HTML reports, /pr creates pull requests, /merge-check does dry-run merge validation.",
+      "description": "AI-powered QA automation and Git workflow toolkit. /aqa-spec generates YAML test scenarios via Q&A or Figma analysis, /aqa-run executes scenarios via browser-use with HTML reports, /aqa-inspect runs end-to-end QA (generate → execute → results.csv + HTML report), /aqa-jira files Jira tickets from failed QA results behind a human gate, /pr creates pull requests, /merge-check does dry-run merge validation.",
       "version": "0.2.0",
       "author": {
         "name": "ten1010-io"
@@ -25,9 +25,11 @@
         "qa",
         "automation",
         "browser-use",
+        "playwright",
         "testing",
         "yaml",
         "figma",
+        "jira",
         "pr",
         "git"
       ],
@@ -36,8 +38,10 @@
         "qa",
         "testing",
         "browser-automation",
+        "playwright",
         "yaml",
         "figma",
+        "jira",
         "pr",
         "git",
         "workflow"

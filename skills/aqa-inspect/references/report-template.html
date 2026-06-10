@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>AI QA Inspection Report (Claude Code) - {{META_EXECUTED_AT}}</title>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f3f4f6; }
+    code { background: #e5e7eb; padding: 1px 4px; border-radius: 3px; font-size: 11px; word-break: break-all; }
+    .meta { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; }
+    .meta-grid { display: flex; flex-wrap: wrap; gap: 8px 32px; }
+    .meta-item { font-size: 13px; color: #444; }
+    .meta-item .meta-label { color: #888; margin-right: 6px; }
+    .summary-cards { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+    .card { padding: 16px 24px; border-radius: 12px; border: 1px solid #e5e7eb; text-align: center; flex: 1 1 0; min-width: 0; }
+    .card-value { font-size: 32px; font-weight: bold; }
+    .card-label { color: #666; font-size: 13px; }
+    .card-total { background: #fff; }
+    .card-pass { background: #f0fdf4; border-color: #bbf7d0; }
+    .card-pass .card-value { color: #22c55e; }
+    .card-fail { background: #fef2f2; border-color: #fecaca; }
+    .card-fail .card-value { color: #ef4444; }
+    .card-discuss { background: #fffbeb; border-color: #fde68a; }
+    .card-discuss .card-value { color: #d97706; }
+    .case { border: 1px solid #d1d5db; border-radius: 12px; padding: 16px; margin: 16px 0; background: #fafafa; }
+    .case-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .badge { color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+    .badge-pass { background: #22c55e; }
+    .badge-fail { background: #ef4444; }
+    .badge-needs_discussion { background: #d97706; }
+    .case-meta { font-size: 12px; color: #666; }
+    .detail { border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px; margin: 8px 0; background: #fff; }
+    .detail-label { font-size: 11px; font-weight: bold; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 2px; }
+    .failure-reason { color: #991b1b; font-size: 13px; white-space: pre-wrap; }
+    .expected-actual { color: #1f2937; font-size: 13px; white-space: pre-wrap; }
+    .discuss-note { color: #92400e; font-size: 13px; white-space: pre-wrap; }
+    .case-evidence { margin-top: 8px; }
+    .case-evidence img { max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; }
+    .jira-link { font-size: 12px; color: #1d4ed8; }
+    .summary-cards .card { cursor: pointer; user-select: none; transition: box-shadow .15s, transform .05s; }
+    .summary-cards .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+    .summary-cards .card.active { outline: 2px solid #2563eb; outline-offset: 2px; }
+    .search-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+    #case-search { flex: 1; max-width: 480px; padding: 10px 14px; font-size: 14px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    #case-search:focus { outline: 2px solid #2563eb; border-color: transparent; }
+    .filter-status { font-size: 13px; color: #666; }
+    .case.hidden { display: none; }
+</style>
+</head>
+<body>
+    <h1>AI QA Inspection Report <span style="font-size:16px;color:#666">(Claude Code + {{META_ENGINE}})</span></h1>
+
+    <!-- Meta header -->
+    <div class="meta">
+        <div class="meta-grid">
+            <span class="meta-item"><span class="meta-label">Executed at</span>{{META_EXECUTED_AT}}</span>
+            <span class="meta-item"><span class="meta-label">Base URL</span><code>{{META_BASE_URL}}</code></span>
+            <span class="meta-item"><span class="meta-label">Engine</span>{{META_ENGINE}}</span>
+            <span class="meta-item"><span class="meta-label">Browser</span>{{META_BROWSER}}</span>
+            <span class="meta-item"><span class="meta-label">Commit</span><code>{{META_COMMIT_HASH}}</code></span>
+        </div>
+    </div>
+
+    <!-- Summary Cards (clickable: filter cases by status; Total clears the filter) -->
+    <div class="summary-cards">
+        <div class="card card-total" data-filter="all"><div class="card-value">{{TOTAL}}</div><div class="card-label">Total Cases</div></div>
+        <div class="card card-pass" data-filter="pass"><div class="card-value">{{PASSED}}</div><div class="card-label">Passed</div></div>
+        <div class="card card-fail" data-filter="fail"><div class="card-value">{{FAILED}}</div><div class="card-label">Failed</div></div>
+        <div class="card card-discuss" data-filter="needs_discussion"><div class="card-value">{{NEEDS_DISCUSSION}}</div><div class="card-label">Needs Discussion</div></div>
+    </div>
+
+    <!-- Search box: free-text filter over case id/name/reason/notes -->
+    <div class="search-bar">
+        <input type="search" id="case-search" placeholder="Search cases… (id, name, failure reason, notes)" autocomplete="off">
+        <span id="filter-status" class="filter-status"></span>
+    </div>
+
+    <!--
+      RENDERER CONTRACT (read before generating):
+      - Repeat everything between BEGIN-CASE and END-CASE once per case, in cases.yaml order.
+      - Conditional sections are wrapped in IF-* / ENDIF-* markers: include the section ONLY
+        when its field is non-empty; otherwise OMIT the whole section (never render an empty
+        label or a broken <img src="">).
+      - After rendering, VALIDATE: (a) <div> open/close counts are equal, (b) no {{TOKEN}} or
+        {token} placeholders remain, (c) the number of <div class="case"> equals the case count.
+        A truncated case block nests every following case one level deeper — the report becomes
+        a staircase. If validation fails, fix the renderer, do not ship the report.
+    -->
+    <!-- BEGIN-CASE -->
+    <div class="case" data-status="{status}">
+        <div class="case-header">
+            <h3>
+                {case_id} — {case_name}
+                <!-- status is one of: pass | fail | needs_discussion -->
+                <span class="badge badge-{status}">{STATUS}</span>
+            </h3>
+            <span class="case-meta">{tester} | {finished_at}</span>
+        </div>
+
+        <!-- IF-failure_reason -->
+        <div class="detail">
+            <div class="detail-label">Failure Reason</div>
+            <div class="failure-reason">{failure_reason}</div>
+        </div>
+        <!-- ENDIF-failure_reason -->
+        <!-- IF-expected_vs_actual -->
+        <div class="detail">
+            <div class="detail-label">Expected vs Actual</div>
+            <div class="expected-actual">{expected_vs_actual}</div>
+        </div>
+        <!-- ENDIF-expected_vs_actual -->
+
+        <!-- IF-discuss_note -->
+        <div class="detail">
+            <div class="detail-label">Discussion Note</div>
+            <div class="discuss-note">{discuss_note}</div>
+        </div>
+        <!-- ENDIF-discuss_note -->
+
+        <!-- IF-evidence_path -->
+        <div class="case-evidence">
+            <div class="detail-label">Evidence</div>
+            <img src="{evidence_path}" loading="lazy" alt="evidence for {case_id}">
+        </div>
+        <!-- ENDIF-evidence_path -->
+
+        <!-- IF-jira_key -->
+        <div class="jira-link">Jira: <code>{jira_key}</code></div>
+        <!-- ENDIF-jira_key -->
+    </div>
+    <!-- END-CASE -->
+
+    <div style="text-align:center;color:#999;font-size:12px;margin-top:40px;padding:20px">
+        Generated by AI QA Inspection (Claude Code + {{META_ENGINE}})
+    </div>
+
+    <!-- Filter & search (static script — renderer copies this as-is; cases carry data-status) -->
+    <script>
+    (function () {
+        var activeFilter = 'all';
+        var cards = document.querySelectorAll('.summary-cards .card');
+        var searchInput = document.getElementById('case-search');
+        var statusLabel = document.getElementById('filter-status');
+        var cases = document.querySelectorAll('.case');
+
+        function apply() {
+            var q = (searchInput.value || '').trim().toLowerCase();
+            var shown = 0;
+            cases.forEach(function (c) {
+                var okStatus = activeFilter === 'all' || c.getAttribute('data-status') === activeFilter;
+                var okText = !q || c.textContent.toLowerCase().indexOf(q) !== -1;
+                var show = okStatus && okText;
+                c.classList.toggle('hidden', !show);
+                if (show) shown++;
+            });
+            var parts = [];
+            if (activeFilter !== 'all') parts.push('status: ' + activeFilter);
+            if (q) parts.push('search: "' + q + '"');
+            statusLabel.textContent = parts.length ? shown + ' case(s) — ' + parts.join(', ') : '';
+        }
+
+        cards.forEach(function (card) {
+            card.addEventListener('click', function () {
+                var f = card.getAttribute('data-filter');
+                activeFilter = (activeFilter === f) ? 'all' : f;
+                cards.forEach(function (c) { c.classList.toggle('active', c.getAttribute('data-filter') === activeFilter && activeFilter !== 'all'); });
+                apply();
+            });
+        });
+        searchInput.addEventListener('input', apply);
+    })();
+    </script>
+</body>
+</html>

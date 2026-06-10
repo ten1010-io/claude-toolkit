@@ -13,18 +13,22 @@ review gate.
 ## Prerequisites
 
 - `--figma <url>` — the Figma file or frame URL to analyze.
+- `--figma-token <token>` — Figma Personal Access Token. Resolution order:
+  this flag → `FIGMA_ACCESS_TOKEN` in `.env`/`.env.local`/shell env → ask the
+  user. The Figma API rejects unauthenticated requests (403), so a token is
+  always required.
 - `--target <url>` — **required**. The live site the generated cases will run
   against. Without it there is no `BASE_URL` to anchor the steps, so refuse to
   proceed and ask the user for it.
 
-## Step 1 — Analyze the Figma frame
+## Step 1 — Analyze the Figma design
 
 **Reuse the analysis procedure from `aqa-spec`.** Do not re-derive it here.
 Follow the **"Figma Mode Workflow"** section of `skills/aqa-spec/SKILL.md`,
 specifically:
 
-- **F-0 Resolve Figma Access Token** — locate `FIGMA_ACCESS_TOKEN` (`.env`,
-  `.env.local`, shell env) or ask the user.
+- **F-0 Resolve Figma Access Token** — `--figma-token` flag first, then
+  `FIGMA_ACCESS_TOKEN` (`.env`, `.env.local`, shell env), or ask the user.
 - **F-1 Parse Figma URL** — extract `FILE_KEY` and optional `NODE_ID`.
 - **F-2 Fetch Figma File Structure** — pull the file (and node) JSON via the
   Figma API.
@@ -36,6 +40,44 @@ specifically:
 That section is the single source of truth for *how* to read a Figma design.
 This document only covers *what to emit afterward*: a `cases.yaml` shaped for
 `aqa-inspect` execution.
+
+### Step 1a — Scope: a node-id is an entry point, NOT the boundary
+
+**Do not generate cases from only the node in the URL.** A `node-id` in a
+shared Figma link usually points at one frame (often a single annotation), but
+the user's intent is almost always the *feature or file* that frame belongs to.
+Generating from one frame silently produces a tiny, misleading case set.
+
+Required procedure:
+
+1. Fetch the file's page/section structure first (shallow):
+   `GET /v1/files/{FILE_KEY}?depth=2` — this is small even for huge files.
+2. Enumerate the feature areas: SECTION nodes (e.g. `Job_List`, `Job_Create`)
+   and annotation/policy frames (names like `화면 정의`, `정책`, `[ D ] ...`,
+   "spec", "policy"). These annotation frames carry the richest testable rules.
+3. **Present the discovered structure to the user and confirm scope**: the
+   single linked node, one feature area, or the full page/file.
+   Default to the **widest scope the user confirms** — when in doubt, propose
+   full coverage and let them prune. Never silently default to node-only.
+4. Extract TEXT node contents per area (design JSON is huge; the policy text is
+   what matters). Analyze text, not raw geometry.
+
+### Step 1b — Figma API rate limits (cost-based)
+
+The Figma API uses **cost-based rate limiting** — one giant request can exhaust
+the budget for many minutes (observed: two ~80MB section fetches → 429 for
+15+ minutes). Rules:
+
+- **Never fetch whole SECTION nodes blindly** — sections containing component
+  instances can be 50–100MB each. Prefer the small annotation/policy frames
+  found in Step 1a, fetched **one node per request**.
+- Always pass `geometry=none`. Use `depth` for structure listing.
+- Cache every successful response to disk before parsing; never re-fetch what
+  you already have.
+- On `429`: back off 60–120s and retry. On `400 Request too large`: split into
+  per-node requests — do not retry the same oversized request.
+- Long waits are normal; run retries in the background and continue other work
+  (e.g. drafting cases from already-fetched areas) while waiting.
 
 ## Step 2 — Derive candidate user flows → cases
 

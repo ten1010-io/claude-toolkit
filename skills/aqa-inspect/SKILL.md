@@ -15,7 +15,8 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 
 | Flag | Default | Description |
 |---|---|---|
-| `--figma <url>` / `-f <url>` | — | Figma file or frame URL. If present, cases are generated from the design (see `references/generate-figma.md`). |
+| `--figma <url>` / `-f <url>` | — | Figma file or frame URL. If present, cases are generated from the design (see `references/generate-figma.md`). A `node-id` in the URL is an entry point only — the full file structure is enumerated and the scope is confirmed with the user. |
+| `--figma-token <token>` | env / ask | Figma Personal Access Token. Falls back to `FIGMA_ACCESS_TOKEN` (.env / shell env), then asks the user. Required whenever `--figma` is used. |
 | `--target <url>` | — | Live service URL. Required when `--figma` is absent (exploration mode). Always stored as `BASE_URL` in every case. |
 | `--engine browser-use\|playwright` | `browser-use` | Execution engine. `browser-use` = AI-interpreted screenshots; `playwright` = runtime DOM resolution. |
 | `--tester <name>` | ask once | Who is running the QA. If omitted, ask once at the start and reuse for all rows. |

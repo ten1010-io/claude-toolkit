@@ -18,7 +18,8 @@ Runs the full QA loop in one command: **generate** test cases, **execute** them 
 
 | Option | Default | Description |
 |--------|---------|-------------|
-| `--figma <url>` / `-f <url>` | — | Figma file or frame URL to generate test cases from |
+| `--figma <url>` / `-f <url>` | — | Figma file or frame URL to generate test cases from (full file structure is enumerated; a node-id is only an entry point) |
+| `--figma-token <token>` | env / ask | Figma Personal Access Token (falls back to `FIGMA_ACCESS_TOKEN` env, then asks) |
 | `--target <url>` | — | Live service URL to explore and test against |
 | `--engine browser-use\|playwright` | browser-use | Execution engine (browser-use screenshots or Playwright DOM) |
 | `--tester <name>` | — | Tester name recorded in `results.csv` |

@@ -75,6 +75,8 @@ runtime):
    `기대: <expected>` newline `실제: <observed>` (or `Expected:`/`Actual:`).
    Never a single `/`-joined line; the report renders this field pre-wrap and
    RFC-4180 CSV quoting handles embedded newlines.
+7. **`failure_reason` formatting**: same pre-wrap rendering — one finding per
+   line (`\n`-separated), never a comma-joined parenthetical blob.
 
 ### Cleanup
 

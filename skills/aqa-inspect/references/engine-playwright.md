@@ -145,6 +145,10 @@ separated by `\n` — `기대: <expected>` newline `실제: <observed>` (or
 `/` — the report renders this field with `white-space: pre-wrap`, and the CSV
 quoting (RFC-4180) already handles embedded newlines.
 
+**`failure_reason` formatting rule.** Same pre-wrap rendering: one finding per
+line. When a failure has multiple checks or sub-findings, put each on its own
+`\n`-separated line instead of a comma-joined parenthetical blob.
+
 ## Result Determination → `results.csv`
 
 `results.csv` is the integration contract defined in `results-csv.md`. That file

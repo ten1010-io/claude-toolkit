@@ -21,6 +21,7 @@ Runs the full QA loop in one command: **generate** test cases, **execute** them 
 | `--figma <url>` / `-f <url>` | — | Figma file or frame URL to generate test cases from (full file structure is enumerated; a node-id is only an entry point) |
 | `--figma-token <token>` | env / ask | Figma Personal Access Token (falls back to `FIGMA_ACCESS_TOKEN` env, then asks) |
 | `--target <url>` | — | Live service URL to explore and test against |
+| `--cases <path>` | — | Execute an existing `cases.yaml` directly, skipping generation (cases must carry a `case_id` per `skills/aqa-inspect/references/cases-yaml.md`; the drafted-case human review gate is skipped for user-provided files) |
 | `--engine browser-use\|playwright` | browser-use | Execution engine (browser-use screenshots or Playwright DOM) |
 | `--tester <name>` | — | Tester name recorded in `results.csv` |
 | `--screenshot` | Off | Capture before/after screenshots per step |
@@ -38,6 +39,9 @@ Runs the full QA loop in one command: **generate** test cases, **execute** them 
 
 # Generate from a Figma design and run against the live service
 /aqa-inspect --figma https://www.figma.com/file/xxx/Login --target https://app.example.com
+
+# Execute an existing cases.yaml directly (no generation)
+/aqa-inspect --cases cases/login.yaml
 
 # Use the Playwright engine, headless, 4 cases at a time
 /aqa-inspect --target https://app.example.com --engine playwright --headless --parallel 4

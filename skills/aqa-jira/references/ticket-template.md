@@ -55,7 +55,7 @@ Compose the description as **Markdown** (passed to `createJiraIssue` with `conte
 Notes:
 
 - `Steps to Reproduce` comes from the matched `cases.yaml` case's `steps[].action`, in order.
-- Mask any step marked `sensitive: true` as `****` (same rule as `aqa-run` / `aqa-inspect`).
+- Mask any step marked `sensitive: true` as `****` (same rule as `aqa-inspect`).
 - Omit a block entirely when its field is empty (e.g. no `commit_hash` → drop that table row; no `expected_vs_actual` → drop that heading; no `evidence_path` → drop the Screenshot line).
 
 ## Evidence (no binary attachment)

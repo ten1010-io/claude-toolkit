@@ -17,7 +17,8 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 |---|---|---|
 | `--figma <url>` / `-f <url>` | — | Figma file or frame URL. If present, cases are generated from the design (see `references/generate-figma.md`). A `node-id` in the URL is an entry point only — the full file structure is enumerated and the scope is confirmed with the user. |
 | `--figma-token <token>` | env / ask | Figma Personal Access Token. Falls back to `FIGMA_ACCESS_TOKEN` (.env / shell env), then asks the user. Required whenever `--figma` is used. |
-| `--target <url>` | — | Live service URL. Required when `--figma` is absent (exploration mode). Always stored as `BASE_URL` in every case. |
+| `--target <url>` | — | Live service URL. Required when both `--figma` and `--cases` are absent (exploration mode). Always stored as `BASE_URL` in every case. |
+| `--cases <path>` | — | Execute an existing `cases.yaml` directly, skipping generation. The file must conform to `references/cases-yaml.md` (including a `case_id` per case). The drafted-case human review gate is skipped for user-provided files. |
 | `--engine browser-use\|playwright` | `browser-use` | Execution engine. `browser-use` = AI-interpreted screenshots; `playwright` = runtime DOM resolution. |
 | `--tester <name>` | ask once | Who is running the QA. If omitted, ask once at the start and reuse for all rows. |
 | `--screenshot` | off | Capture per-step screenshots into `artifacts/{case_id}/` and reference them as `evidence_path`. |
@@ -47,14 +48,15 @@ If `--tester <name>` was passed, use it. Otherwise ask the user **once** at the 
 
 **On `--rerun-failed` / `--resume`, SKIP this entire step — including the human-review gate.** Reuse the existing `cases.yaml` from the report dir **as-is**; do NOT regenerate. Regenerating would change `case_id`s and break the rerun match against the existing `results.csv`. Jump straight to Step 3.
 
-Otherwise (fresh run), decide the generation path from the arguments:
+Otherwise (fresh run), decide the path from the arguments:
 
+- If `--cases <path>` is present → **skip generation entirely.** Load the given file, validate it against the schema in `references/cases-yaml.md` (top-level `cases:` list; every case carries a `case_id`, `name`, `expected_result`, `test_data` with `BASE_URL`, and `steps`). If validation fails, report the problems and stop. The human review gate below is **skipped** — the file was authored by the user, not drafted by the AI. Go straight to Step 3.
 - If `--figma <url>` is present → follow `references/generate-figma.md`. (`--target <url>` is required there for `BASE_URL`; ask for it if missing.)
 - Otherwise → require `--target <url>` and follow `references/generate-explore.md`. If `--target` is missing, ask for it before proceeding.
 
-Both paths emit `cases.yaml` in the **AQA "Format A"** schema (the `cases:` structure documented in `skills/aqa-run/SKILL.md`) **plus a required `case_id` per case** — a stable lowercase slug like `login-001` (see `references/results-csv.md` and the `case_id` convention in the generation refs). The `case_id` is the join key for rerun-match and Jira dedup, so it must stay stable across regenerations.
+Both generation paths emit `cases.yaml` in the schema defined in `references/cases-yaml.md`, including a required `case_id` per case — a stable lowercase slug like `login-001` (see `references/results-csv.md` and the `case_id` convention in the generation refs). The `case_id` is the join key for rerun-match and Jira dedup, so it must stay stable across regenerations.
 
-**MANDATORY human review:** Show the full drafted `cases.yaml` to the user and pause for confirm / edit / cancel before any execution. Generation is lossy and can hallucinate selectors, validation messages, or flows. Do NOT auto-run drafted cases without explicit approval.
+**MANDATORY human review (generated cases only):** Show the full drafted `cases.yaml` to the user and pause for confirm / edit / cancel before any execution. Generation is lossy and can hallucinate selectors, validation messages, or flows. Do NOT auto-run drafted cases without explicit approval. (Not applicable to `--cases` — user-provided files are already human-authored.)
 
 ### 3. Create / reuse the report directory
 
@@ -135,6 +137,7 @@ Report: reports/{timestamp}/report.html
 
 ## References
 
+- `references/cases-yaml.md` — authoritative `cases.yaml` schema (file/case/step fields, `case_id` requirement, variable substitution rules).
 - `references/results-csv.md` — authoritative `results.csv` schema contract (columns, quoting, per-field meaning); shared with `aqa-jira`.
 - `references/generate-figma.md` — generate `cases.yaml` from a `--figma <url>` design, with mandatory review.
 - `references/generate-explore.md` — generate `cases.yaml` by exploring a live `--target <url>`, with mandatory review.

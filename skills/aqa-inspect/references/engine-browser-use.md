@@ -3,9 +3,10 @@
 This reference defines how the **browser-use** execution engine runs a
 `cases.yaml` plan and populates `results.csv`. It is one of two interchangeable
 engines for `aqa-inspect`; the other is documented in `engine-playwright.md`.
-Both engines consume the **same** `cases.yaml` (see `generate-figma.md` /
-`generate-explore.md`) and emit the **same** `results.csv` schema (see
-`results-csv.md`). The only difference is the runtime mechanism.
+Both engines consume the **same** `cases.yaml` (schema in `cases-yaml.md`;
+produced by `generate-figma.md` / `generate-explore.md`) and emit the **same**
+`results.csv` schema (see `results-csv.md`). The only difference is the runtime
+mechanism.
 
 This engine drives an AI-interpreted browser session: each natural-language
 `step.action` is interpreted at runtime against the live page state, with no
@@ -13,23 +14,46 @@ pre-baked selectors.
 
 ## Dependency Check + `BROWSER_USE_CMD`
 
-This engine reuses the dependency-resolution procedure from
-**`skills/aqa-run/SKILL.md` Step 0 ("Dependency Check")** verbatim. Do not
-re-derive it here — follow that step. In summary:
+Before running anything, verify that the `browser-use` CLI is available.
 
-- Probe for the CLI in this search order: **global install** (`browser-use
-  --help`) → **project venv** (`.browser-use/bin/browser-use --help`) → **home
-  venv** (`~/.browser-use/bin/browser-use --help`).
-- On the first success, store that path as `BROWSER_USE_CMD` and use it for
-  every subsequent `browser-use` invocation.
-- If all probes fail, print the install message from `aqa-run/SKILL.md` Step 0
-  (the `uv venv` + `uv pip install browser-use` instructions) and **stop
-  immediately**.
+### Search order
+
+Probe for the CLI in this order:
+
+1. **Global install**: run `browser-use --help`
+2. **Project venv**: run `.browser-use/bin/browser-use --help` (relative to
+   project root)
+3. **Home directory venv**: run `~/.browser-use/bin/browser-use --help`
+
+- On the first success → store that path as `BROWSER_USE_CMD` and use it for
+  **every** subsequent `browser-use` invocation:
+  - Global install: `browser-use open "..."`
+  - venv install: `.browser-use/bin/browser-use open "..."` or
+    `~/.browser-use/bin/browser-use open "..."`
+- If all probes fail → print the message below and **stop immediately**:
+
+```
+[ERROR] browser-use CLI is not installed.
+Please install it using one of the methods below (uv venv recommended):
+
+  # Per-project install (current directory)
+  uv venv .browser-use --python 3.12
+  uv pip install browser-use --python .browser-use/bin/python
+
+  # Or global install (home directory)
+  uv venv ~/.browser-use --python 3.12
+  uv pip install browser-use --python ~/.browser-use/bin/python
+
+Please try again after installation.
+```
+
+> uv venv + Python 3.12 is recommended to avoid Python 3.14 compatibility
+> issues.
 
 ## Per-Case Execution
 
 Each case runs in its own isolated browser session. The per-step execution loop
-mirrors **`aqa-run/SKILL.md` steps 4-1 .. 4-5**; this engine applies it per
+below (open → handle SSL warnings → execute steps → cleanup) is applied per
 `case_id`.
 
 ### Open the session
@@ -45,8 +69,7 @@ mirrors **`aqa-run/SKILL.md` steps 4-1 .. 4-5**; this engine applies it per
 ### Handle SSL certificate warnings
 
 If `browser-use state` output contains `"Your connection is not private"` or
-`"ERR_CERT"`: click **Advanced** → **Proceed to (unsafe)**, then continue. (Same
-handling as `aqa-run/SKILL.md` step 4-2.)
+`"ERR_CERT"`: click **Advanced** → **Proceed to (unsafe)**, then continue.
 
 ### Execute each step
 
@@ -81,7 +104,7 @@ runtime):
 ### Cleanup
 
 After the case finishes (pass, fail, or needs_discussion), always clean up the
-session — same as `aqa-run/SKILL.md` step 4-5:
+session:
 
 ```bash
 {BROWSER_USE_CMD} --session case_{case_id} cookies clear
@@ -97,8 +120,7 @@ empty-field rules. This engine MUST populate it exactly as described there.
 ### Determining `status`
 
 Determine the per-case outcome from the final page state / screenshots and the
-case's `expected_result` (the same `expected_result` semantics as
-`aqa-run/SKILL.md` step 4-4):
+case's `expected_result` (semantics defined in `cases-yaml.md`):
 
 - **`expected_result: "pass"`** → every step succeeded and the success state is
   observed ⇒ `status = pass`; any step failed or the success state is missing ⇒

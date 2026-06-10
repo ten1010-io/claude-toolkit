@@ -4,8 +4,8 @@ This reference describes how `aqa-inspect` auto-drafts a `cases.yaml` test plan
 by exploring a live site directly, when the user provides a `--target <url>`
 but **no** `--figma <url>`.
 
-`cases.yaml` follows the **AQA scenario schema (Format A "cases:" structure)**
-defined in `skills/aqa-run/SKILL.md` — the same schema produced by the
+`cases.yaml` follows the **authoritative schema in
+`references/cases-yaml.md`** — the same schema produced by the
 Figma path in `generate-figma.md`. Both paths use the identical schema, the
 same `case_id` slug convention, and the same mandatory human review gate.
 
@@ -80,10 +80,10 @@ The slug must stay stable across regenerations because it is the join key for
 **rerun match** (re-running previously failed cases) and **Jira dedup**
 (`aqa-jira` keys tickets off `case_id`). Never renumber or reuse a retired id.
 
-## Step 5 — Emit `cases.yaml` (Format A)
+## Step 5 — Emit `cases.yaml`
 
-Fill the AQA Format A skeleton. The full schema lives in
-`skills/aqa-run/SKILL.md` ("Format A: Cases Structure"); the abbreviated
+Fill the schema skeleton. The full schema lives in
+`references/cases-yaml.md`; the abbreviated
 skeleton below shows only what this path must populate:
 
 ```yaml
@@ -161,7 +161,7 @@ Before any execution:
 
 1. Show the full drafted `cases.yaml` to the user.
 2. Pause and let them confirm, edit, or cancel — the same review pattern as
-   `aqa-spec`'s "F-6 Human-in-the-Loop Review".
+   `generate-figma.md`'s "Step 5 — MANDATORY human review".
 3. Only after explicit human approval may the cases be executed.
 
 `aqa-inspect` MUST NOT auto-run exploration-derived cases without this approval.

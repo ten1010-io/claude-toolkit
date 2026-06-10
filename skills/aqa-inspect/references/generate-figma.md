@@ -4,18 +4,16 @@ This reference describes how `aqa-inspect` turns a `--figma <url>` into a draft
 `cases.yaml` test plan. It is used when the user invokes `aqa-inspect` with a
 Figma file or frame URL.
 
-`cases.yaml` follows the **AQA scenario schema (Format A "cases:" structure)**
-defined in `skills/aqa-run/SKILL.md`. The same schema is produced by the
-live-URL path documented in `generate-explore.md`. Both paths emit identical
-schema and follow the same `case_id` convention and the same mandatory human
-review gate.
+`cases.yaml` follows the **authoritative schema in
+`references/cases-yaml.md`**. The same schema is produced by the live-URL path
+documented in `generate-explore.md`. Both paths emit identical schema and follow
+the same `case_id` convention and the same mandatory human review gate.
 
 ## Prerequisites
 
 - `--figma <url>` — the Figma file or frame URL to analyze.
-- `--figma-token <token>` — Figma Personal Access Token. Resolution order:
-  this flag → `FIGMA_ACCESS_TOKEN` in `.env`/`.env.local`/shell env → ask the
-  user. The Figma API rejects unauthenticated requests (403), so a token is
+- `--figma-token <token>` — Figma Personal Access Token (resolution order in
+  Step 1). The Figma API rejects unauthenticated requests (403), so a token is
   always required.
 - `--target <url>` — **required**. The live site the generated cases will run
   against. Without it there is no `BASE_URL` to anchor the steps, so refuse to
@@ -23,23 +21,70 @@ review gate.
 
 ## Step 1 — Analyze the Figma design
 
-**Reuse the analysis procedure from `aqa-spec`.** Do not re-derive it here.
-Follow the **"Figma Mode Workflow"** section of `skills/aqa-spec/SKILL.md`,
-specifically:
+### Step 1.1 — Resolve the Figma access token
 
-- **F-0 Resolve Figma Access Token** — `--figma-token` flag first, then
-  `FIGMA_ACCESS_TOKEN` (`.env`, `.env.local`, shell env), or ask the user.
-- **F-1 Parse Figma URL** — extract `FILE_KEY` and optional `NODE_ID`.
-- **F-2 Fetch Figma File Structure** — pull the file (and node) JSON via the
-  Figma API.
-- **F-3 Analyze Figma Design** — identify target frames, extract UI components
-  (inputs, buttons, labels, error/success states, navigation, form structure),
-  infer happy-path and error flows, and extract test-data hints from labels and
-  placeholders.
+Resolve the token in this priority order:
 
-That section is the single source of truth for *how* to read a Figma design.
-This document only covers *what to emit afterward*: a `cases.yaml` shaped for
-`aqa-inspect` execution.
+1. The `--figma-token <token>` flag, if passed.
+2. `FIGMA_ACCESS_TOKEN` in `.env` in the current working directory.
+3. `FIGMA_ACCESS_TOKEN` in `.env.local`.
+4. Shell environment: `echo $FIGMA_ACCESS_TOKEN`.
+
+If none are found, ask the user directly:
+
+> "I need a Figma Personal Access Token to fetch the design file.
+> You can generate one at: Figma → Profile → Settings → Security → Personal access tokens
+> Please paste your token here:"
+
+Store the resolved value as `FIGMA_TOKEN` for all subsequent API calls.
+
+### Step 1.2 — Parse the Figma URL
+
+Extract the file key and optional node ID from the provided Figma URL:
+
+```
+# File URL
+https://www.figma.com/file/{FILE_KEY}/{title}
+
+# Design URL (with node)
+https://www.figma.com/design/{FILE_KEY}/{title}?node-id={NODE_ID}
+
+# Prototype URL
+https://www.figma.com/proto/{FILE_KEY}/{title}?node-id={NODE_ID}
+```
+
+- Extract `FILE_KEY` (always present).
+- Extract `NODE_ID` from the `?node-id=` query param if present — it is the
+  **entry point** for scope discovery (see Step 1a; never the boundary).
+- URL-decode the node ID if needed (e.g., `123-456` and `123%3A456` are both
+  valid forms).
+
+### Step 1.3 — Fetch the Figma file structure
+
+Fetch via the Figma REST API with the token in the `X-Figma-Token` header:
+
+```bash
+# Full file structure
+curl -s -H "X-Figma-Token: {FIGMA_TOKEN}" \
+  "https://api.figma.com/v1/files/{FILE_KEY}" \
+  -o /tmp/figma_file.json
+
+# Optional node-specific data
+curl -s -H "X-Figma-Token: {FIGMA_TOKEN}" \
+  "https://api.figma.com/v1/files/{FILE_KEY}/nodes?ids={NODE_ID}" \
+  -o /tmp/figma_nodes.json
+```
+
+If the API call fails:
+
+- `"Invalid token"` → ask the user for a new token.
+- `"Not found"` → tell the user the file is not accessible (private or wrong
+  URL).
+- Other errors → show the raw error message and stop.
+
+Scope and request sizing for these fetches are governed by Step 1a and
+Step 1b below — read them before fetching anything beyond the shallow
+structure listing.
 
 ### Step 1a — Scope: a node-id is an entry point, NOT the boundary
 
@@ -79,9 +124,51 @@ the budget for many minutes (observed: two ~80MB section fetches → 429 for
 - Long waits are normal; run retries in the background and continue other work
   (e.g. drafting cases from already-fetched areas) while waiting.
 
+### Step 1.4 — Analyze the design
+
+Read the fetched JSON (`/tmp/figma_file.json`, plus `/tmp/figma_nodes.json` and
+any per-area node fetches) and extract:
+
+#### Identify target frame(s)
+
+- Within the scope confirmed in Step 1a, focus on the relevant frames and
+  components.
+- If only a `NODE_ID` scope was confirmed: focus on that specific
+  frame/component; otherwise analyze the confirmed feature areas.
+
+#### Extract UI components
+
+| Component type | Detection criteria |
+|---|---|
+| **Input fields** | `TEXT` inside frame with input-style fills, or component name containing "input", "field", "text" |
+| **Buttons** | `FRAME` or `COMPONENT` with name containing "button", "btn", "cta", "submit" |
+| **Labels / Headings** | `TEXT` nodes with large font size or bold weight |
+| **Error states** | frames or components named with "error", "warning", "invalid", "fail" |
+| **Success states** | frames or components named with "success", "confirm", "complete" |
+| **Navigation elements** | links, tabs, breadcrumbs, back buttons |
+| **Form structure** | grouping of inputs + submit button = a form |
+
+If component names are generic (e.g., "Frame 12", "Rectangle 5"), rely on
+visual structure (position, size, fill) to infer the component type.
+
+#### Infer user flows
+
+1. **Happy path**: fill inputs → click submit → see success state.
+2. **Error paths**: trigger error states (e.g., empty form → error message;
+   invalid format → validation error).
+
+#### Extract test-data hints
+
+From label and placeholder text:
+
+- Input field labels → test data keys (e.g., "Email" → `email`, "Password" →
+  `password`).
+- Placeholder text → example test data values.
+- Fall back to defaults: `testuser@example.com`, `TestPassword123!`.
+
 ## Step 2 — Derive candidate user flows → cases
 
-From the analyzed components and inferred flows (F-3.3), enumerate candidate
+From the analyzed components and inferred flows, enumerate candidate
 **user flows** and turn each into one case:
 
 - **Happy path** per primary flow: fill inputs → submit → see success state.
@@ -95,12 +182,12 @@ Each case carries these fields:
 | `case_id` | Stable slug — see "case_id convention" below. |
 | `name` | Human-readable case title (becomes the Jira summary downstream). |
 | `priority` | `critical` / `high` / `medium` / `low`. **Informational only** — `aqa-inspect` does **not** filter or select cases by priority. It is metadata for the human reader. |
-| `test_data` | `key: value` map. Always includes `BASE_URL`. Derive other keys from F-3.4 test-data hints. |
+| `test_data` | `key: value` map. Always includes `BASE_URL`. Derive other keys from the test-data hints extracted in Step 1.4. |
 | `steps` | Ordered list of `action` entries in natural language (multi-step). |
 | `expected_result` | `"pass"` for happy paths, `"fail"` for error paths (the error appearing is the expected normal behavior). |
 
 `BASE_URL` is taken from `--target <url>` and stored in **every** case's
-`test_data`, exactly as in the `aqa-spec` Figma flow.
+`test_data`.
 
 ## Step 3 — `case_id` convention
 
@@ -117,11 +204,11 @@ The slug must be stable across regenerations because it is the join key for:
 Do not renumber or rename a `case_id` once it has been reviewed and run. New
 cases get new trailing numbers; they never reuse a retired id.
 
-## Step 4 — Emit `cases.yaml` (Format A)
+## Step 4 — Emit `cases.yaml`
 
-Fill the AQA Format A skeleton. The full schema lives in
-`skills/aqa-run/SKILL.md` ("Format A: Cases Structure"); the abbreviated
-skeleton below shows only what this path must populate:
+Fill the schema skeleton. The full schema lives in
+`references/cases-yaml.md`; the abbreviated skeleton below shows only what this
+path must populate:
 
 ```yaml
 name: "Login"
@@ -169,7 +256,7 @@ cases:
 Notes:
 
 - Mark password / token / secret inputs with `sensitive: true` on the relevant
-  step (same rule as `aqa-spec`).
+  step (see the substitution rules in `references/cases-yaml.md`).
 - `BASE_URL` is mandatory in every `test_data` block.
 - `cleanup: clear_cookies` is the per-case default.
 
@@ -184,8 +271,7 @@ messages, or which flows actually exist on the live site. Treat the generated
 Before any execution:
 
 1. Show the full drafted `cases.yaml` to the user.
-2. Pause and let them confirm, edit, or cancel — the same review pattern as
-   `aqa-spec`'s "F-6 Human-in-the-Loop Review".
+2. Pause and let them confirm, edit, or cancel.
 3. Only after explicit human approval may the cases be executed.
 
 `aqa-inspect` MUST NOT auto-run Figma-derived cases without this approval.

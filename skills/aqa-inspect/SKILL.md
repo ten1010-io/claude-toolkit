@@ -19,12 +19,12 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 | `--figma-token <token>` | env / ask | Figma Personal Access Token. Falls back to `FIGMA_ACCESS_TOKEN` (.env / shell env), then asks the user. Required whenever `--figma` is used. |
 | `--target <url>` | — | Live service URL. Required when both `--figma` and `--cases` are absent (exploration mode). Always stored as `BASE_URL` in every case. |
 | `--cases <path>` | — | Execute an existing `cases.yaml` directly, skipping generation. The file must conform to `references/cases-yaml.md` (including a `case_id` per case). The drafted-case human review gate is skipped for user-provided files. |
-| `--engine browser-use\|playwright` | `browser-use` | Execution engine. `browser-use` = AI-interpreted screenshots; `playwright` = runtime DOM resolution. |
+| `--engine browser-use\|playwright` | ask | Execution engine. `browser-use` = AI-interpreted screenshots; `playwright` = runtime DOM resolution. If omitted, the user is asked to pick one at the start (Step 0). |
 | `--tester <name>` | ask once | Who is running the QA. If omitted, ask once at the start and reuse for all rows. |
-| `--screenshot` | off | Capture per-step screenshots into `artifacts/{case_id}/` and reference them as `evidence_path`. |
+| `--screenshot` | off | **Full capture mode**: per-step screenshots for every case into `artifacts/{case_id}/`. Even **without** this flag, a screenshot is always captured at the moment a case fails (or lands in `needs_discussion`) — failure evidence is mandatory, not optional. The flag only adds per-step shots for passing cases too. |
 | `--headed` / `--headless` | `--headed` | Browser visibility. Headed shows a visible window. |
 | `--parallel N` | `2` | Run up to N cases concurrently via a worker pool. `--parallel 1` runs sequentially. |
-| `--rerun-failed` | off | Reuse the most recent report dir; skip `pass` rows, re-run only `fail` / `needs_discussion`. |
+| `--rerun-failed` | off / auto-ask | Reuse the most recent report dir; skip `pass` rows, re-run only `fail` / `needs_discussion`. Even without the flag, if the latest report dir has unresolved rows the user is asked whether to re-run them (Step 0.5). |
 | `--resume <reports_dir>` | — | Reuse an explicit existing report dir; same skip-pass / re-run-unresolved behavior. |
 
 ## Workflow
@@ -33,12 +33,32 @@ Follow these steps **exactly**.
 
 ### 0. Resolve engine + dependency check
 
-Read `--engine` (default `browser-use`). Then run the dependency check for the selected engine:
+Read `--engine`. **If the flag was not passed, do NOT silently default — ask the user which engine to use** (via AskUserQuestion where available), presenting both options with a one-line tradeoff each:
+
+- `browser-use` (recommended default) — AI-interpreted screenshots; resilient to selector changes, slower per step.
+- `playwright` — runtime DOM resolution; fast and deterministic, requires Playwright v1.60.0+.
+
+Then run the dependency check for the selected engine:
 
 - `browser-use` → follow `references/engine-browser-use.md` ("Dependency Check + `BROWSER_USE_CMD`"). Store `BROWSER_USE_CMD`.
 - `playwright` → follow `references/engine-playwright.md` ("Dependency Check"). Require Playwright v1.60.0+.
 
 If the dependency check fails, print that engine's install message and **stop immediately**.
+
+### 0.5. Rerun auto-detect
+
+Runs only when **none** of `--rerun-failed`, `--resume`, or `--cases` was passed.
+
+Find the most recent `reports/{timestamp}/` directory (lexically-largest name). If it exists and its `results.csv` contains any row with `status=fail` or `status=needs_discussion`, ask the user before starting a fresh run:
+
+> "The last run ({timestamp}) has {N} unresolved case(s) ({fail} fail / {needs_discussion} needs discussion). Re-run only those, or start a fresh run?"
+
+- **Re-run** → proceed exactly as if `--rerun-failed` had been passed (Step 2 is skipped, Step 3 reuses that dir).
+- **Fresh** → continue normally.
+
+If no previous report dir exists, or its `results.csv` has no unresolved rows, skip this question silently.
+
+Where possible, bundle this question into the same AskUserQuestion call as the Step 0 engine question (and the Step 1 tester question) — one interruption at the start, not three.
 
 ### 1. Tester
 
@@ -80,6 +100,8 @@ In both reuse modes: read the existing `cases.yaml` and `results.csv` from that 
 
 Delegate execution to the engine reference (`references/engine-browser-use.md` or `references/engine-playwright.md`). Both honor `--headed`/`--headless`, `--parallel N`, and `--screenshot`, and isolate each case (browser-use session per `case_id`; Playwright context per case).
 
+**Failure-moment evidence (both engines, regardless of `--screenshot`):** when a case fails or ends `needs_discussion`, capture a screenshot of the page state at that moment into `artifacts/{case_id}/` and set it as `evidence_path`. Passing cases get screenshots only in `--screenshot` full-capture mode — so default runs stay fast.
+
 Write/update `results.csv` exactly per `references/results-csv.md` (column order, RFC 4180 quoting, empty-field rules). The `tester` column is filled from Step 1, not invented by the engine.
 
 Capture run metadata for the report:
@@ -88,7 +110,9 @@ Capture run metadata for the report:
 - `engine` — `browser-use` or `playwright`.
 - `browser` — the browser used (e.g. Chromium headed/headless).
 - `commit_hash` — `git rev-parse --short HEAD` if inside a git repo, else empty.
-- `executed_at` — run start timestamp (ISO-8601).
+- `executed_at` — run start timestamp (ISO-8601), taken right before the first case starts.
+- `finished_at` — run end timestamp (ISO-8601), taken right after the last case finishes.
+- `duration_seconds` — `finished_at - executed_at` in whole seconds.
 
 ### 5. `needs_discussion` reclassification stage
 
@@ -103,6 +127,8 @@ First write `summary.json` to the report dir, capturing the run metadata (from S
 ```json
 {
   "executed_at": "{ISO-8601 run start}",
+  "finished_at": "{ISO-8601 run end}",
+  "duration_seconds": N,
   "engine": "browser-use|playwright",
   "base_url": "{base_url}",
   "browser": "{browser used, e.g. Chromium headed}",
@@ -117,7 +143,7 @@ First write `summary.json` to the report dir, capturing the run metadata (from S
 
 Then read `references/report-template.html` and render it to `report.html` in the report dir. The template uses **two token styles** — fill **both**:
 
-- **Run-global tokens `{{UPPER}}`:** `{{META_EXECUTED_AT}}`, `{{META_BASE_URL}}`, `{{META_ENGINE}}`, `{{META_BROWSER}}`, `{{META_COMMIT_HASH}}`, `{{TOTAL}}`, `{{PASSED}}`, `{{FAILED}}`, `{{NEEDS_DISCUSSION}}`.
+- **Run-global tokens `{{UPPER}}`:** `{{META_EXECUTED_AT}}`, `{{META_FINISHED_AT}}`, `{{META_DURATION}}`, `{{META_BASE_URL}}`, `{{META_ENGINE}}`, `{{META_BROWSER}}`, `{{META_COMMIT_HASH}}`, `{{TOTAL}}`, `{{PASSED}}`, `{{FAILED}}`, `{{NEEDS_DISCUSSION}}`. `{{META_DURATION}}` is human-readable, built from `duration_seconds` — `1h 12m 34s` / `12m 34s` / `34s` (omit leading zero units).
 - **Per-case row tokens `{lower}`** (substituted once per `results.csv` row): `{case_name}`, `{status}`, `{STATUS}`, `{tester}`, `{finished_at}`, `{failure_reason}`, `{expected_vs_actual}`, `{discuss_note}`, `{evidence_path}`, `{case_id}`, `{jira_key}`.
 
 **Repeat and conditional markers.** The per-case block is delimited by `<!-- BEGIN-CASE -->` / `<!-- END-CASE -->` — repeat that whole block once per `results.csv` row, in order. Conditional sections inside it are wrapped in `<!-- IF-{field} -->` / `<!-- ENDIF-{field} -->` pairs: include a section ONLY when its field is non-empty, otherwise OMIT the whole section — do NOT emit an empty "Failure Reason" / "Discussion Note" section or a broken `<img src="">`. `evidence_path` is a relative path under `artifacts/{case_id}/`, which resolves against the report dir for both engines.
@@ -150,7 +176,7 @@ Report: reports/{timestamp}/report.html
 Each run writes into `reports/{YYYY-MM-DD_HH-MM-SS}/`:
 
 - `results.csv` — per-case rows (schema in `references/results-csv.md`).
-- `summary.json` — machine-readable run metadata + counts (`executed_at`, `engine`, `base_url`, `browser`, `commit_hash`, `tester`, `total`, `passed`, `failed`, `needs_discussion`). This is what `aqa-jira` reads for run metadata.
+- `summary.json` — machine-readable run metadata + counts (`executed_at`, `finished_at`, `duration_seconds`, `engine`, `base_url`, `browser`, `commit_hash`, `tester`, `total`, `passed`, `failed`, `needs_discussion`). This is what `aqa-jira` reads for run metadata.
 - `report.html` — human-facing rendered report.
 - `artifacts/{case_id}/` — per-step screenshots (only with `--screenshot`).
 

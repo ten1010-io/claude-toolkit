@@ -72,7 +72,7 @@ resolution, and assertion logic are elided):
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
-const input = JSON.parse(await readStdin());           // { case_id, name, test_data, steps, expected_result, headed }
+const input = JSON.parse(await readStdin());           // { case_id, name, test_data, steps, expected_result, headed, screenshot }
 const { case_id } = input;
 const artifactsDir = `artifacts/${case_id}`;
 mkdirSync(artifactsDir, { recursive: true });
@@ -102,22 +102,31 @@ async function captureEvidence(page, locator, path) {
   if (handle) await handle.evaluate(el => { el.style.outline = el.__aqaPrev ?? ''; });
 }
 
+let lastLocator = null;
 try {
   for (const [i, step] of input.steps.entries()) {
     const tree = await page.accessibility.snapshot();  // runtime DOM/a11y read
     const locator = resolveLocator(page, step.action, tree);  // getByRole/getByText/getByLabel/CSS
+    lastLocator = locator;
     await act(page, locator, step, input.test_data);   // fill/click/goto, honor sensitive
     await assertStep(page, step);                      // verify post-condition
-    const shot = `${artifactsDir}/step-${i + 1}.png`;
-    await captureEvidence(page, locator, shot);        // red box on the verified element
-    result.evidence_path = shot;
+    if (input.screenshot) {                            // full capture mode only
+      const shot = `${artifactsDir}/step-${i + 1}.png`;
+      await captureEvidence(page, locator, shot);      // red box on the verified element
+      result.evidence_path = shot;
+    }
   }
-  // reconcile against expected_result to set pass/fail/needs_discussion
+  // reconcile against expected_result to set pass/fail/needs_discussion;
+  // if that lands on fail/needs_discussion, capture failure evidence as below
 } catch (err) {
   result.status = 'fail';
   result.failure_reason = String(err.message ?? err);
   // MULTI-LINE format (report renders pre-wrap): "기대: …\n실제: …"
   result.expected_vs_actual = describeExpectedVsActual(input, page);
+  // Failure-moment evidence — ALWAYS captured, even without --screenshot
+  const shot = `${artifactsDir}/failure.png`;
+  await captureEvidence(page, lastLocator, shot).catch(() => {});
+  result.evidence_path = shot;
 } finally {
   result.finished_at = new Date().toISOString();
   await context.close();
@@ -126,6 +135,14 @@ try {
 
 process.stdout.write(JSON.stringify(result));
 ```
+
+**Screenshot policy.** Default runs capture **nothing per step** — passing
+cases pay zero screenshot overhead. Evidence is captured only at the **failure
+moment**: when a step throws, or when the `expected_result` reconciliation
+lands on `fail` / `needs_discussion`, screenshot the page state right then into
+`artifacts/{case_id}/` and set `evidence_path`. This failure-moment capture is
+mandatory and independent of `--screenshot`. With `--screenshot` (full capture
+mode), additionally capture every step for every case as shown in the loop.
 
 **Evidence highlighting rule.** Whenever evidence is captured for a specific
 element (the element a verification targeted, the missing-column header row,
@@ -183,7 +200,7 @@ case's `expected_result`:
 | `finished_at` | ISO-8601 timestamp when the case completed (`result.finished_at`). Leave empty if the case crashed/aborted before completing. |
 | `failure_reason` | Free-text reason, set **only when `status = fail`**. Empty otherwise. |
 | `expected_vs_actual` | Expected vs observed, set when `status = fail` **or** `needs_discussion`. Empty when `pass`. |
-| `evidence_path` | Relative path under `artifacts/{case_id}/` to the captured screenshot/log. Set when `--screenshot` is on or on failure. |
+| `evidence_path` | Relative path under `artifacts/{case_id}/` to the captured screenshot/log. **Always set for `fail` / `needs_discussion`** (failure-moment capture is mandatory). Set for `pass` only in `--screenshot` full-capture mode. |
 | `discuss_note` | Free-text ambiguity note, set **only when `status = needs_discussion`** (see rule below). Empty otherwise. |
 | `jira_key` | Always left **empty** by this engine; `aqa-jira` fills it later. |
 

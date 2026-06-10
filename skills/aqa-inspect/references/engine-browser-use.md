@@ -85,9 +85,14 @@ runtime):
      `eval "document.body.innerText"` to confirm expected text / state.
 3. Apply `${key}` substitution from the case's `test_data` before acting. Mask
    any step marked `sensitive: true` as `****` in logs/output.
-4. If `--screenshot` is set, capture a screenshot for the step into
-   `artifacts/{case_id}/` (this directory is also the source for
-   `evidence_path`).
+4. Screenshot policy:
+   - **`--screenshot` (full capture mode)** → capture a screenshot for every
+     step into `artifacts/{case_id}/`.
+   - **Default (flag off)** → no per-step captures. But the moment a step
+     fails — or the case is determined `fail` / `needs_discussion` — capture
+     the page state at that moment into `artifacts/{case_id}/` and use it as
+     `evidence_path`. **Failure-moment evidence is mandatory in both modes;
+     never finish a `fail` / `needs_discussion` case without a screenshot.**
 5. **Evidence highlighting**: when the evidence targets a specific element
    (the verified control, a missing column's header row, a broken field),
    draw a temporary red outline on it before capturing — via
@@ -142,7 +147,7 @@ case's `expected_result` (semantics defined in `cases-yaml.md`):
 | `finished_at` | ISO-8601 timestamp when the case completed. Leave empty if the case crashed/aborted before completing. |
 | `failure_reason` | Free-text reason, set **only when `status = fail`**. Empty otherwise. |
 | `expected_vs_actual` | Expected vs observed, set when `status = fail` **or** `needs_discussion`. Empty when `pass`. |
-| `evidence_path` | Relative path under `artifacts/{case_id}/` to the captured screenshot/log. Set when `--screenshot` is on or on failure. |
+| `evidence_path` | Relative path under `artifacts/{case_id}/` to the captured screenshot/log. **Always set for `fail` / `needs_discussion`** (failure-moment capture is mandatory). Set for `pass` only in `--screenshot` full-capture mode. |
 | `discuss_note` | Free-text ambiguity note, set **only when `status = needs_discussion`** (see rule below). Empty otherwise. |
 | `jira_key` | Always left **empty** by this engine; `aqa-jira` fills it later. |
 

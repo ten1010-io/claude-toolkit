@@ -84,6 +84,23 @@ const result = { case_id, status: 'pass', finished_at: null,
                  failure_reason: '', expected_vs_actual: '',
                  evidence_path: '', discuss_note: '' };
 
+// Highlight the element under test with a red box before capturing evidence,
+// so the report reader instantly sees WHERE to look. Remove the box afterward.
+async function captureEvidence(page, locator, path) {
+  let handle = null;
+  if (locator) {
+    handle = await locator.elementHandle().catch(() => null);
+    if (handle) await handle.evaluate(el => {
+      el.__aqaPrev = el.style.outline;
+      el.style.outline = '3px solid #ef4444';
+      el.style.outlineOffset = '2px';
+      el.scrollIntoView({ block: 'center' });
+    });
+  }
+  await page.screenshot({ path });
+  if (handle) await handle.evaluate(el => { el.style.outline = el.__aqaPrev ?? ''; });
+}
+
 try {
   for (const [i, step] of input.steps.entries()) {
     const tree = await page.accessibility.snapshot();  // runtime DOM/a11y read
@@ -91,13 +108,14 @@ try {
     await act(page, locator, step, input.test_data);   // fill/click/goto, honor sensitive
     await assertStep(page, step);                      // verify post-condition
     const shot = `${artifactsDir}/step-${i + 1}.png`;
-    await page.screenshot({ path: shot });
+    await captureEvidence(page, locator, shot);        // red box on the verified element
     result.evidence_path = shot;
   }
   // reconcile against expected_result to set pass/fail/needs_discussion
 } catch (err) {
   result.status = 'fail';
   result.failure_reason = String(err.message ?? err);
+  // MULTI-LINE format (report renders pre-wrap): "기대: …\n실제: …"
   result.expected_vs_actual = describeExpectedVsActual(input, page);
 } finally {
   result.finished_at = new Date().toISOString();
@@ -107,6 +125,25 @@ try {
 
 process.stdout.write(JSON.stringify(result));
 ```
+
+**Evidence highlighting rule.** Whenever evidence is captured for a specific
+element (the element a verification targeted, the missing-column header row,
+the broken control), draw a temporary red outline (`3px solid #ef4444`,
+`outline-offset: 2px`) on that element, scroll it into view, take the
+screenshot, then restore the original style. Full-page context shots without a
+single target element may skip the box.
+
+CSS `outline` does not paint on some elements (observed: `<tr>` in
+table-layout contexts). Fallback: inject a fixed-position overlay `<div>`
+sized to the target's `getBoundingClientRect()` with
+`border: 3px solid #ef4444; pointer-events: none; z-index: 99999`, screenshot,
+then remove the overlay.
+
+**`expected_vs_actual` formatting rule.** Always write it as two lines
+separated by `\n` — `기대: <expected>` newline `실제: <observed>` (or
+`Expected:` / `Actual:` in English runs). Never join them into one line with
+`/` — the report renders this field with `white-space: pre-wrap`, and the CSV
+quoting (RFC-4180) already handles embedded newlines.
 
 ## Result Determination → `results.csv`
 

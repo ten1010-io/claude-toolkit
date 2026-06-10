@@ -65,6 +65,16 @@ runtime):
 4. If `--screenshot` is set, capture a screenshot for the step into
    `artifacts/{case_id}/` (this directory is also the source for
    `evidence_path`).
+5. **Evidence highlighting**: when the evidence targets a specific element
+   (the verified control, a missing column's header row, a broken field),
+   draw a temporary red outline on it before capturing — via
+   `eval "el.style.outline='3px solid #ef4444'; el.style.outlineOffset='2px'; el.scrollIntoView({block:'center'})"`
+   on the located element — take the screenshot, then restore the style.
+   Full-page context shots without a single target may skip the box.
+6. **`expected_vs_actual` formatting**: always two lines separated by `\n` —
+   `기대: <expected>` newline `실제: <observed>` (or `Expected:`/`Actual:`).
+   Never a single `/`-joined line; the report renders this field pre-wrap and
+   RFC-4180 CSV quoting handles embedded newlines.
 
 ### Cleanup
 

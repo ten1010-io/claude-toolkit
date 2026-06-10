@@ -148,7 +148,9 @@ Then read `references/report-template.html` and render it to `report.html` in th
 
 **Repeat and conditional markers.** The per-case block is delimited by `<!-- BEGIN-CASE -->` / `<!-- END-CASE -->` — repeat that whole block once per `results.csv` row, in order. Conditional sections inside it are wrapped in `<!-- IF-{field} -->` / `<!-- ENDIF-{field} -->` pairs: include a section ONLY when its field is non-empty, otherwise OMIT the whole section — do NOT emit an empty "Failure Reason" / "Discussion Note" section or a broken `<img src="">`. `evidence_path` is a relative path under `artifacts/{case_id}/`, which resolves against the report dir for both engines.
 
-**Validate before shipping the report (mandatory).** After rendering, check: (a) `<div>` open/close counts are equal, (b) no `{{TOKEN}}` or unfilled `{token}` placeholders remain, (c) the count of `<div class="case">` equals the number of result rows. A truncated case block leaves divs unclosed, which nests every subsequent case one level deeper and renders the report as an unreadable staircase. If any check fails, fix the renderer and regenerate — never deliver an unvalidated report.
+**Strip template-machinery comments from the shipped report.** The template's renderer-contract comment and the `BEGIN-CASE` / `IF-*` markers are instructions to the renderer, not report content — remove all HTML comments from the rendered output. This is also required for validation to work: the contract comment contains literal `{{TOKEN}}` / `{token}` sample text and an unmatched `<div class="case">` example, which false-positive every check below if left in.
+
+**Validate before shipping the report (mandatory).** After rendering (and comment-stripping), check: (a) `<div>` open/close counts are equal, (b) no `{{TOKEN}}` or unfilled `{token}` placeholders remain, (c) the count of `<div class="case">` equals the number of result rows. A truncated case block leaves divs unclosed, which nests every subsequent case one level deeper and renders the report as an unreadable staircase. If any check fails, fix the renderer and regenerate — never deliver an unvalidated report.
 
 ### 7. Print summary
 

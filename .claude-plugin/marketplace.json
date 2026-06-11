@@ -14,7 +14,7 @@
         "url": "https://github.com/ten1010-io/claude-toolkit.git"
       },
       "description": "AI-powered QA automation and Git workflow toolkit. /aqa-inspect runs end-to-end QA (generate test cases from a Figma design or live-URL exploration → execute → results.csv + HTML report), /aqa-jira files Jira tickets from failed QA results behind a human gate, /pr creates pull requests, /merge-check does dry-run merge validation.",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "author": {
         "name": "ten1010-io"
       },

@@ -24,6 +24,8 @@ Runs the full QA loop in one command: **generate** test cases, **execute** them 
 | `--cases <path>` | — | Execute an existing `cases.yaml` directly, skipping generation (cases must carry a `case_id` per `skills/aqa-inspect/references/cases-yaml.md`; the drafted-case human review gate is skipped for user-provided files) |
 | `--engine browser-use\|playwright` | ask | Execution engine (browser-use screenshots or Playwright DOM). If omitted, you'll be asked to pick one at the start |
 | `--tester <name>` | — | Tester name recorded in `results.csv` |
+| `--auth-email <v>` | env / ask | Login email/ID for targets behind authentication (falls back to `QA_AUTH_EMAIL` env; asked only when the target requires login) |
+| `--auth-password <v>` | env / ask | Login password (falls back to `QA_AUTH_PASSWORD` env; masked as `****` everywhere) |
 | `--screenshot` | Off | Full capture mode: per-step screenshots for every case. Failure-moment screenshots are always captured regardless of this flag |
 | `--headed` | Yes | Run with a visible browser window |
 | `--headless` | No | Run in headless mode |

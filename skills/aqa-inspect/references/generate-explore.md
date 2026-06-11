@@ -16,7 +16,7 @@ same `case_id` slug convention, and the same mandatory human review gate.
 - No `--figma` argument. If both are present, the Figma path
   (`generate-figma.md`) takes precedence and this path is not used.
 
-## Step 1 — Open the target
+## Step 1 — Open the target (and authenticate if required)
 
 Open `--target <url>` with the selected automation engine:
 
@@ -24,6 +24,10 @@ Open `--target <url>` with the selected automation engine:
 - **Playwright engine:** `page.goto("<url>")`
 
 Wait for the page to settle (load / network idle) before inspecting.
+
+**Authentication (from SKILL.md Step 1.5):** if the run was marked as requiring login, perform the login flow with the resolved credentials **before** any inspection — locate the email/ID and password fields, fill them, submit, and verify the authenticated state. Only then proceed to Step 2. Mask the password as `****` in every log line and status message.
+
+**Login-wall fallback:** if login was NOT marked as required but the opened page is a login wall (redirect to a login path, or a password field gating the content), pause, ask the user for credentials (per SKILL.md Step 1.5 resolution order), log in, then continue exploring.
 
 ## Step 2 — Inspect the DOM / accessibility tree
 
@@ -149,6 +153,13 @@ Notes:
   step.
 - `BASE_URL` (from `--target <url>`) is mandatory in every `test_data` block.
 - `cleanup: clear_cookies` is the per-case default.
+- **Authenticated targets:** when the run requires login, every generated case
+  must be independently executable — inject `auth_email` / `auth_password` into
+  each case's `test_data`, prepend the login steps (navigate to the login page,
+  enter `${auth_email}`, enter `${auth_password}` with `sensitive: true`,
+  submit, verify the authenticated state) before the case's own steps, and keep
+  `cleanup: clear_cookies` so sessions never leak between cases. When showing
+  the drafted `cases.yaml` for review, display the password value as `****`.
 
 ## Step 6 — MANDATORY human review before execution
 

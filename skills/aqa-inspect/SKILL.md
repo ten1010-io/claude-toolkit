@@ -21,6 +21,8 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 | `--cases <path>` | — | Execute an existing `cases.yaml` directly, skipping generation. The file must conform to `references/cases-yaml.md` (including a `case_id` per case). The drafted-case human review gate is skipped for user-provided files. |
 | `--engine browser-use\|playwright` | ask | Execution engine. `browser-use` = AI-interpreted screenshots; `playwright` = runtime DOM resolution. If omitted, the user is asked to pick one at the start (Step 0). |
 | `--tester <name>` | ask once | Who is running the QA. If omitted, ask once at the start and reuse for all rows. |
+| `--auth-email <v>` | env / ask | Login account email/ID for targets behind authentication. Falls back to `QA_AUTH_EMAIL` (.env / shell env), then asks — only when the user says the target requires login (Step 1.5). |
+| `--auth-password <v>` | env / ask | Login account password. Falls back to `QA_AUTH_PASSWORD` (.env / shell env), then asks. Plaintext chat input is acceptable; the value is masked as `****` in all logs, output, and reports via the `sensitive: true` mechanism. |
 | `--screenshot` | off | **Full capture mode**: per-step screenshots for every case into `artifacts/{case_id}/`. Even **without** this flag, a screenshot is always captured at the moment a case fails (or lands in `needs_discussion`) — failure evidence is mandatory, not optional. The flag only adds per-step shots for passing cases too. |
 | `--headed` / `--headless` | `--headed` | Browser visibility. Headed shows a visible window. |
 | `--parallel N` | `2` | Run up to N cases concurrently via a worker pool. `--parallel 1` runs sequentially. |
@@ -30,6 +32,15 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 ## Workflow
 
 Follow these steps **exactly**.
+
+### Question batching rule
+
+Interrupt the user at most **twice** at the start. Collect every applicable start-of-run question into batched AskUserQuestion calls (max 4 questions per call); each question is skipped individually when its flag/env already supplies the value:
+
+- **Round 1 (always at most one call):** engine (Step 0) · tester (Step 1) · rerun offer (Step 0.5) · "does the target require login?" (Step 1.5).
+- **Round 2 (conditional follow-up, only if needed):** auth email · auth password (Step 1.5, when login = yes) · Figma token · target URL (Figma path, see `generate-figma.md`).
+
+A run with all values supplied via flags/env asks **zero** questions.
 
 ### 0. Resolve engine + dependency check
 
@@ -58,11 +69,26 @@ Find the most recent `reports/{timestamp}/` directory (lexically-largest name). 
 
 If no previous report dir exists, or its `results.csv` has no unresolved rows, skip this question silently.
 
-Where possible, bundle this question into the same AskUserQuestion call as the Step 0 engine question (and the Step 1 tester question) — one interruption at the start, not three.
+This question goes into Round 1 of the question batching rule above.
 
 ### 1. Tester
 
-If `--tester <name>` was passed, use it. Otherwise ask the user **once** at the start ("Who is running this QA?") and reuse that value for every `results.csv` row's `tester` column.
+If `--tester <name>` was passed, use it. Otherwise ask the user **once** at the start ("Who is running this QA?", Round 1) and reuse that value for every `results.csv` row's `tester` column.
+
+### 1.5. Authentication requirement + credentials
+
+Runs only in **generation modes** (`--figma` / `--target` exploration). **Skip entirely for `--cases`** — user-authored files already carry credentials in `test_data`.
+
+1. Ask in Round 1: **"Does the target page require login?"** (yes / no).
+2. **No** → do not ask anything about credentials. Done.
+3. **Yes** → resolve the account in this priority order, asking (Round 2) only for what is still missing:
+   1. `--auth-email` / `--auth-password` flags.
+   2. `QA_AUTH_EMAIL` / `QA_AUTH_PASSWORD` from `.env` / `.env.local` / shell env.
+   3. Ask the user. Plaintext password input in chat is acceptable.
+
+Hand the resolved credentials to the generation step (Step 2): the generation refs perform the login flow before exploring, inject the credentials into every generated case's `test_data`, prepend the login steps, and mark password-input steps `sensitive: true`. The password is masked as `****` in all logs, output, `cases.yaml` review display, and reports.
+
+**Login-wall fallback:** if the user answered "no" (or wasn't asked) but exploration hits a login wall — a redirect to a login path or a password field blocking the flow — pause and ask for credentials at that point, then continue.
 
 ### 2. Generate cases → `cases.yaml`
 
@@ -71,8 +97,10 @@ If `--tester <name>` was passed, use it. Otherwise ask the user **once** at the 
 Otherwise (fresh run), decide the path from the arguments:
 
 - If `--cases <path>` is present → **skip generation entirely.** Load the given file, validate it against the schema in `references/cases-yaml.md` (top-level `cases:` list; every case carries a `case_id`, `name`, `expected_result`, `test_data` with `BASE_URL`, and `steps`). If validation fails, report the problems and stop. The human review gate below is **skipped** — the file was authored by the user, not drafted by the AI. Go straight to Step 3.
-- If `--figma <url>` is present → follow `references/generate-figma.md`. (`--target <url>` is required there for `BASE_URL`; ask for it if missing.)
+- If `--figma <url>` is present → follow `references/generate-figma.md`. (`--target <url>` is required there for `BASE_URL`; ask for it if missing — Round 2 question.)
 - Otherwise → require `--target <url>` and follow `references/generate-explore.md`. If `--target` is missing, ask for it before proceeding.
+
+In both generation paths, pass the Step 1.5 auth outcome through: when login is required, authenticate before exploring/verifying, inject credentials into `test_data`, and prepend login steps to generated cases (details in each generation ref).
 
 Both generation paths emit `cases.yaml` in the schema defined in `references/cases-yaml.md`, including a required `case_id` per case — a stable lowercase slug like `login-001` (see `references/results-csv.md` and the `case_id` convention in the generation refs). The `case_id` is the join key for rerun-match and Jira dedup, so it must stay stable across regenerations.
 

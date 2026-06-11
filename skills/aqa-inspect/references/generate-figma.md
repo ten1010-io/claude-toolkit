@@ -17,7 +17,13 @@ the same `case_id` convention and the same mandatory human review gate.
   always required.
 - `--target <url>` — **required**. The live site the generated cases will run
   against. Without it there is no `BASE_URL` to anchor the steps, so refuse to
-  proceed and ask the user for it.
+  proceed and ask the user for it (question prompt, Round 2 of SKILL.md's
+  question batching rule).
+- Auth outcome from SKILL.md Step 1.5 — when the target requires login, inject
+  `auth_email` / `auth_password` into every generated case's `test_data`,
+  prepend login steps (password step `sensitive: true`), and display the
+  password as `****` in the review output. Same rules as
+  `generate-explore.md`'s "Authenticated targets" note.
 
 ## Step 1 — Analyze the Figma design
 
@@ -30,13 +36,13 @@ Resolve the token in this priority order:
 3. `FIGMA_ACCESS_TOKEN` in `.env.local`.
 4. Shell environment: `echo $FIGMA_ACCESS_TOKEN`.
 
-If none are found, ask the user directly:
+If none are found, ask the user via a **question prompt** (AskUserQuestion where available — Round 2 of SKILL.md's question batching rule, bundled with the auth-credential questions when both apply), explaining where to get one:
 
 > "I need a Figma Personal Access Token to fetch the design file.
 > You can generate one at: Figma → Profile → Settings → Security → Personal access tokens
-> Please paste your token here:"
+> Please paste your token."
 
-Store the resolved value as `FIGMA_TOKEN` for all subsequent API calls.
+Store the resolved value as `FIGMA_TOKEN` for all subsequent API calls. Mask it as `****` in logs and output.
 
 ### Step 1.2 — Parse the Figma URL
 

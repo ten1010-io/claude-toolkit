@@ -48,17 +48,66 @@ Prefer the accessibility tree for stable, human-meaningful element names
 (accessible name + role); fall back to DOM attributes (id, name, label `for`)
 when the accessibility name is missing.
 
-## Step 3 — Derive cases
+## Step 3 — Derive cases (MAXIMIZE COVERAGE)
 
-For each primary form / flow discovered, derive at least:
+> **Coverage is the primary goal. Time is NOT a constraint.** Generate as MANY
+> cases as the surface area justifies — a thorough sheet for a real app is
+> typically **dozens to well over a hundred** cases, not a handful. Never stop
+> at "a few happy paths plus two negatives." Under-generating is the most common
+> failure of this step; err heavily toward MORE cases. Do not silently cap,
+> sample, or "pick the important ones" — enumerate the whole surface.
 
-- **One happy path** — fill all fields with valid data, submit, verify the
-  success outcome.
-- **Obvious negative cases**, at minimum:
-  - **Empty required field** — leave a required field blank and submit; expect a
-    validation error.
-  - **Invalid input** — supply a malformed value (e.g. `not-an-email` in an
-    email field) and submit; expect a validation error.
+### 3a. Enumerate the WHOLE surface first (breadth)
+
+Do not test only the landing page. Crawl and list **every reachable
+destination** before writing cases:
+
+- **Every route / page** reachable from the nav, sidebar, menus, breadcrumbs,
+  and in-page links (and, for authed apps, every admin/management route).
+- **Every list/table** and its **detail** pages (open a representative row).
+- **Every create / edit form** and modal/dialog/drawer.
+- **Every tab, sub-tab, and view toggle** within each page.
+
+Each distinct page, detail view, dialog, and tab is its own group of cases.
+
+### 3b. Decompose each destination into MANY cases (depth)
+
+For every page/flow, do NOT write a single "page loads" case. Break it into
+field-, control-, and state-level cases. At minimum, per destination, cover:
+
+- **Render checks** — each major section/heading is present; each **table
+  column header** is present (enumerate them explicitly, not "columns render");
+  key rows/values render.
+- **Every interactive control** — each button, link, tab, toggle, dropdown,
+  date/month picker, sort control, filter. One case per control (open it,
+  verify its options/behavior). For destructive controls, see the safety note.
+- **Search / filter / sort** — a matching query, a **no-match** query (empty
+  state), each filter dropdown's options, each sortable column.
+- **Pagination** — controls present; page-size selector; next/prev where data
+  allows.
+- **Full CRUD** wherever a create path exists — **C**reate (happy), **R**ead
+  (it appears in the list + detail opens), **U**pdate (edit a field, save,
+  verify persisted), **D**elete (remove + verify gone, as cleanup). Treat
+  Create/Read/Update/Delete as **separate cases**, not one.
+- **Negative & boundary cases** — empty required field, invalid format,
+  duplicate value, too-long / special-character input, whitespace-only — each
+  its own `expected_result: "fail"` case.
+- **Auth / session / security** where applicable — valid login, wrong password,
+  unknown user, empty fields, session-persists-on-reload, and
+  **unauthenticated access to a protected route redirects to login**.
+- **Cross-cutting** — nav routing for every menu item, sidebar collapse/expand,
+  page title, notifications, logout.
+
+### 3c. Safety on shared / production-like targets
+
+Maximizing coverage must never mean damaging shared state. For mutating
+controls (Delete, Drain, Cordon, reset, reclaim, transfer, role changes, bulk
+ops, downloads that bill, etc.) on data you did not create:
+
+- Prefer a **throwaway resource** you create and then delete for full CRUD.
+- When no safe throwaway exists, write the case as **presence-verified only**
+  ("verify the Delete button is present; DO NOT click it") rather than dropping
+  coverage. Note the limitation in the case `name`.
 
 Each case carries these fields:
 
@@ -149,6 +198,11 @@ cases:
 
 Notes:
 
+- **Language:** write every case `name` and every `steps[].action` in the
+  **user's language** (the language the user is conversing in), per the Language
+  rule in `SKILL.md`. The English `name`/`action` text in the skeleton above is
+  a reference only — translate it. `case_id` slugs stay lowercase ASCII; YAML
+  keys and `expected_result` values (`pass`/`fail`) stay in English.
 - Mark password / token / secret inputs with `sensitive: true` on the relevant
   step.
 - `BASE_URL` (from `--target <url>`) is mandatory in every `test_data` block.

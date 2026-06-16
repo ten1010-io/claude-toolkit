@@ -172,14 +172,36 @@ From label and placeholder text:
 - Placeholder text → example test data values.
 - Fall back to defaults: `testuser@example.com`, `TestPassword123!`.
 
-## Step 2 — Derive candidate user flows → cases
+## Step 2 — Derive candidate user flows → cases (MAXIMIZE COVERAGE)
+
+> **Coverage is the primary goal. Time is NOT a constraint.** Enumerate as MANY
+> cases as the design surface justifies — across **every** frame, screen, state,
+> and component in the confirmed scope, not just the linked frame. A thorough
+> sheet is typically **dozens to well over a hundred** cases. Under-generating
+> is the most common failure of this step; err heavily toward MORE cases. Do not
+> silently cap or sample — cover the whole confirmed scope.
 
 From the analyzed components and inferred flows, enumerate candidate
-**user flows** and turn each into one case:
+**user flows** and turn each into MANY cases. Per screen/frame, do NOT stop at
+one happy path — decompose into field-, control-, and state-level cases:
 
 - **Happy path** per primary flow: fill inputs → submit → see success state.
-- **Error paths** per identified error state: empty required field, invalid
-  format, mismatch, etc.
+- **Every interactive element** designed on the frame — each button, link, tab,
+  toggle, dropdown, and form field gets its own render/behavior case.
+- **Render checks** — each section/heading present; each table column header
+  enumerated explicitly; key values render.
+- **Error / negative / boundary paths** per designed error state — empty
+  required field, invalid format, duplicate, too-long / special characters,
+  mismatch — each its own `expected_result: "fail"` case.
+- **CRUD** wherever the design implies create/edit/delete flows — treat
+  Create, Read, Update, and Delete as **separate cases**.
+- **Navigation & cross-cutting** — every nav target, tab, and breadcrumb shown
+  in the design; auth/session states if the design includes them.
+
+On shared / production-like live targets, never let coverage damage real data:
+use a throwaway resource for full CRUD, or fall back to **presence-verified
+only** for destructive controls rather than dropping the case (same safety note
+as `generate-explore.md` Step 3c).
 
 Each case carries these fields:
 
@@ -261,6 +283,10 @@ cases:
 
 Notes:
 
+- **Language:** write every case `name` and every `steps[].action` in the
+  **user's language**, per the Language rule in `SKILL.md`. The English text in
+  the skeleton above is a reference only — translate it. `case_id` slugs stay
+  lowercase ASCII; YAML keys and `expected_result` values stay in English.
 - Mark password / token / secret inputs with `sensitive: true` on the relevant
   step (see the substitution rules in `references/cases-yaml.md`).
 - `BASE_URL` is mandatory in every `test_data` block.

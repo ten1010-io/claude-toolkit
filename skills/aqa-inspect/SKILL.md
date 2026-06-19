@@ -94,7 +94,13 @@ Hand the resolved credentials to the generation step (Step 2): the generation re
 
 ### 2. Generate cases → `cases.yaml`
 
-**Coverage mandate (generation paths):** maximize the number of cases — **time is not a constraint, coverage is the goal.** Enumerate the *whole* surface (every route/page, list+detail, form, dialog, tab) and decompose each into many field-, control-, state-, and negative-level cases (render checks per column/section, one case per interactive control, search/no-match/filter/sort, pagination, full CRUD as separate C/R/U/D cases, boundary + negative inputs, auth/session/security, cross-cutting nav). A thorough sheet is typically dozens to 100+ cases — never stop at a handful of happy paths. On shared/production targets, preserve coverage safely via throwaway resources or presence-only checks for destructive controls. Full rules: `generate-explore.md` Step 3 / `generate-figma.md` Step 2.
+**Coverage mandate (generation paths):** maximize the number of cases — **time is not a constraint, coverage is the goal.** Enumerate the *whole* surface (every route/page, list+detail, form, dialog, tab) and decompose each into many field-, control-, state-, and negative-level cases. Three categories MUST each be exhausted, not sampled:
+
+- **Every field** — one case (or more, with negatives) per input/select/checkbox/radio/textarea/toggle/date-picker. Never collapse a form into a single "fill the form" case.
+- **Every popup / overlay** — each modal, dialog, drawer, confirm/alert popup, tooltip, toast, dropdown menu, context menu, and popover gets its own case: trigger it open, verify its content, then close/confirm/cancel it (close path is a separate case).
+- **Every action / interaction type** — each button, link, tab, sort, filter, hover, drag, expand/collapse, copy, upload/download, submit, and keyboard interaction gets its own case.
+
+Plus: render checks per column/section, search/no-match/filter/sort, pagination, full CRUD as separate C/R/U/D cases, boundary + negative inputs, auth/session/security, cross-cutting nav. A thorough sheet is typically dozens to 100+ cases — never stop at a handful of happy paths. On shared/production targets, preserve coverage safely via throwaway resources or presence-only checks for destructive controls. Full rules: `generate-explore.md` Step 3 / `generate-figma.md` Step 2.
 
 **On `--rerun-failed` / `--resume`, SKIP this entire step — including the human-review gate.** Reuse the existing `cases.yaml` from the report dir **as-is**; do NOT regenerate. Regenerating would change `case_id`s and break the rerun match against the existing `results.csv`. Jump straight to Step 3.
 

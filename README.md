@@ -1,5 +1,7 @@
 # Claude Toolkit
 
+**English** | [한국어](README.ko.md)
+
 By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation and Git workflow.
 
 ## Installation
@@ -115,14 +117,14 @@ Design + plan: [`docs/superpowers/specs/2026-06-19-aqa-runner-offline-design.md`
 
 ---
 
-### /pr
+### /create-pr
 
-Analyzes branch changes, generates a PR title and description, then pushes and creates the PR.
+Analyzes branch changes, generates a PR title and description (always including a mermaid sequence diagram of the changed flow), then pushes and creates the PR.
 
 **Usage:**
 
 ```
-/pr [options]
+/create-pr [options]
 ```
 
 **Options:**
@@ -165,7 +167,7 @@ claude-toolkit/
 ├── commands/
 │   ├── aqa-inspect.md
 │   ├── aqa-jira.md
-│   ├── pr.md
+│   ├── create-pr.md
 │   └── merge-check.md
 └── skills/
     ├── aqa-inspect/
@@ -174,7 +176,7 @@ claude-toolkit/
     ├── aqa-jira/
     │   ├── SKILL.md
     │   └── references/
-    ├── pr/
+    ├── create-pr/
     │   └── SKILL.md
     └── merge-check/
         └── SKILL.md

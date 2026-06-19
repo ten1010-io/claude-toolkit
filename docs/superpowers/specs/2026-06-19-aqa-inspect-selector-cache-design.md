@@ -123,7 +123,7 @@ each case completes. This removes any `--parallel N` write race.
 - Appended **only when write-back changed an existing descriptor** (a first-time
   fill of an empty `selector` is not drift).
 - `report.html` renders a per-case "⚠ selector drift" badge (old → new) sourced
-  from this sidecar, via a new `<!-- IF-drift -->` conditional section.
+  from this sidecar, via a new `<!-- IF-selector_drift -->` conditional section.
 - `aqa-jira` never reads this file; `results.csv` and `summary.json` are
   untouched.
 
@@ -147,7 +147,7 @@ each case completes. This removes any `--parallel N` write race.
 | `generate-explore.md` | Step 5 harvests selectors into the emitted `cases.yaml`. |
 | `generate-figma.md` | State that `selector` is left empty (no live DOM). |
 | `SKILL.md` | Describe the learned-cache behavior, the `selector-drift.json` output, and the report badge; update Outputs. |
-| `report-template.html` | Drift badge + `<!-- IF-drift -->` conditional block. |
+| `report-template.html` | Drift badge + `<!-- IF-selector_drift -->` conditional block. |
 | `results-csv.md` | **No change** (intentional — keeps `aqa-jira` contract intact). |
 | `.claude-plugin/plugin.json` | Version bump `0.3.2` → `0.3.3`. |
 | `.claude-plugin/marketplace.json` | Version bump `0.3.2` → `0.3.3`. |

@@ -189,13 +189,18 @@ First write `summary.json` to the report dir, capturing the run metadata (from S
 
 If `selector-drift.json` exists in the report dir, surface each record as a
 per-case "selector drift" badge in the report (token `{selector_drift}`,
-rendered only when present — see `report-template.html`). `summary.json` and
-`results.csv` are NOT modified for drift.
+rendered only when present — see `report-template.html`). Match each drift
+record to its case by `case_id`. When a case has multiple drifted steps, render
+one `step N: <old> → <new>` line per matching record and join them (e.g. with
+`<br>`) into the single `{selector_drift}` value. When a case has no drift
+record, leave `{selector_drift}` empty so its `<!-- IF-selector_drift -->`
+section is omitted, consistent with the other IF-conditionals. `summary.json`
+and `results.csv` are NOT modified for drift.
 
 Then read `references/report-template.html` and render it to `report.html` in the report dir. The template uses **two token styles** — fill **both**:
 
 - **Run-global tokens `{{UPPER}}`:** `{{META_EXECUTED_AT}}`, `{{META_FINISHED_AT}}`, `{{META_DURATION}}`, `{{META_BASE_URL}}`, `{{META_ENGINE}}`, `{{META_BROWSER}}`, `{{META_COMMIT_HASH}}`, `{{TOTAL}}`, `{{PASSED}}`, `{{FAILED}}`, `{{NEEDS_DISCUSSION}}`. `{{META_DURATION}}` is human-readable, built from `duration_seconds` — `1h 12m 34s` / `12m 34s` / `34s` (omit leading zero units).
-- **Per-case row tokens `{lower}`** (substituted once per `results.csv` row): `{case_name}`, `{status}`, `{STATUS}`, `{tester}`, `{finished_at}`, `{failure_reason}`, `{expected_vs_actual}`, `{discuss_note}`, `{evidence_path}`, `{case_id}`, `{jira_key}`.
+- **Per-case row tokens `{lower}`** (substituted once per `results.csv` row): `{case_name}`, `{status}`, `{STATUS}`, `{tester}`, `{finished_at}`, `{failure_reason}`, `{expected_vs_actual}`, `{discuss_note}`, `{evidence_path}`, `{case_id}`, `{jira_key}`, `{selector_drift}` (sourced from `selector-drift.json`, not a results.csv column; see Step 6).
 
 **Repeat and conditional markers.** The per-case block is delimited by `<!-- BEGIN-CASE -->` / `<!-- END-CASE -->` — repeat that whole block once per `results.csv` row, in order. Conditional sections inside it are wrapped in `<!-- IF-{field} -->` / `<!-- ENDIF-{field} -->` pairs: include a section ONLY when its field is non-empty, otherwise OMIT the whole section — do NOT emit an empty "Failure Reason" / "Discussion Note" section or a broken `<img src="">`. `evidence_path` is a relative path under `artifacts/{case_id}/`, which resolves against the report dir for both engines.
 

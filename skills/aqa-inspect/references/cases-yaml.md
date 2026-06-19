@@ -56,6 +56,8 @@ cases:
 |---|---|---|
 | `action` | yes | A **natural language** sentence describing the behavior (may contain `${key}` variables). The execution engine interprets it at runtime and resolves the matching browser commands — no pre-baked selectors. |
 | `sensitive` | optional | `true` on steps that input passwords / tokens / secrets. Such values are masked as `****` in all logs, output, and reports. |
+| `selector` | optional | **Machine-managed** structured locator cache for this step (not human-authored). Engine-neutral descriptor with a `strategy` discriminator (`role`/`label`/`text`/`css`) and the matching keys. Populated by generation harvest and/or first-run execution; reused on rerun/resume. Absent ⇒ the engine resolves the step from `action` at runtime, as before. |
+| `selector_anchor` | optional | Expected visible text on the targeted element, used as a heal trigger and false-positive guard when a cached `selector` is reused. Never contains a `sensitive` value. |
 
 ## Variable Substitution Rules
 
@@ -66,6 +68,43 @@ cases:
   provided as input, convert it to `${BASE_URL}` + path form.
 - Keys whose names contain `password`, `secret`, `token`, etc. must have
   `sensitive: true` set on the step that inputs them.
+
+## Selector Cache (machine-managed)
+
+`selector` is an **optional, machine-managed** cache — never required from a
+human author. It lets the execution engines skip natural-language locator
+resolution on reruns. The contract is *no human-authored selectors*; a learned
+cache is a different thing and is allowed here.
+
+### Descriptor shape
+
+```yaml
+selector:
+  strategy: role        # one of: role | label | text | css
+  role: button          # strategy=role  → role + name
+  name: "Sign in"
+  # label: "Email"      # strategy=label
+  # text: "Sign in"     # strategy=text
+  # css: "button.primary"  # strategy=css (last resort, low confidence)
+selector_anchor: "Sign in"   # optional expected visible text
+```
+
+Learning preference order (most to least stable): `role`+`name` > `label` >
+`text` > `css`.
+
+### Rules
+
+- **Optional + backward compatible.** A step with no `selector` behaves exactly
+  as a step did before this field existed.
+- **`${var}` substitution applies** to `selector` values (e.g. a `name`
+  containing `${orderId}`) identically to `action` — store the placeholder
+  verbatim and substitute at execution time.
+- **`sensitive` values never appear** in `selector` or `selector_anchor`; store
+  only field identifiers (a password field is `{strategy: role, role: textbox,
+  name: Password}`).
+- **Who fills it:** generation harvest (live-DOM paths) and/or first-run
+  execution write-back. A fresh regeneration produces a new `cases.yaml` and
+  re-harvests — stale selectors are not inherited.
 
 ## Compact Example
 
@@ -89,6 +128,11 @@ cases:
       - action: "Enter ${password} in the password field"
         sensitive: true
       - action: "Click the Sign in button and wait for page load"
+        selector:
+          strategy: role
+          role: button
+          name: "Sign in"
+        selector_anchor: "Sign in"
       - action: "Verify the dashboard is visible"
     cleanup:
       - type: clear_cookies

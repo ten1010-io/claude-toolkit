@@ -92,14 +92,14 @@
 
 ---
 
-### /pr
+### /create-pr
 
 브랜치 변경 사항을 분석해 PR 제목과 설명을 생성하고, 푸시한 뒤 PR을 만든다. PR 본문에는 변경된 흐름을 나타내는 mermaid 시퀀스 다이어그램이 항상 포함된다.
 
 **사용법:**
 
 ```
-/pr [options]
+/create-pr [options]
 ```
 
 **옵션:**
@@ -142,7 +142,7 @@ claude-toolkit/
 ├── commands/
 │   ├── aqa-inspect.md
 │   ├── aqa-jira.md
-│   ├── pr.md
+│   ├── create-pr.md
 │   └── merge-check.md
 └── skills/
     ├── aqa-inspect/
@@ -151,7 +151,7 @@ claude-toolkit/
     ├── aqa-jira/
     │   ├── SKILL.md
     │   └── references/
-    ├── pr/
+    ├── create-pr/
     │   └── SKILL.md
     └── merge-check/
         └── SKILL.md

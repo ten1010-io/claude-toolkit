@@ -1,5 +1,5 @@
 ---
-name: pr
+name: create-pr
 description: Generate a PR description from current branch changes and create a pull request. Use when the user says "PR 올려줘", "PR 작성해줘", "push PR", "create PR", or asks to ship their work.
 ---
 

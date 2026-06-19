@@ -11,6 +11,8 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 
 **CRITICAL:** You MUST detect the user's language from their messages and use that language for ALL interactions — status updates, questions, review prompts, error messages, result summaries, and reports. Do NOT use the English text written in this skill document as-is when communicating with the user. Translate into the user's language. The English in this document is only a reference for the AI.
 
+This extends to **generated artifacts**: write each `cases.yaml` case `name` and every `steps[].action` in the user's detected language too (not just chat messages). There is no fixed default language — always mirror whatever language the user is speaking. Only machine-stable tokens stay in English/ASCII: `case_id` slugs, YAML keys, and `expected_result` values (`pass`/`fail`).
+
 ## Arguments
 
 | Flag | Default | Description |
@@ -91,6 +93,8 @@ Hand the resolved credentials to the generation step (Step 2): the generation re
 **Login-wall fallback:** if the user answered "no" (or wasn't asked) but exploration hits a login wall — a redirect to a login path or a password field blocking the flow — pause and ask for credentials at that point, then continue.
 
 ### 2. Generate cases → `cases.yaml`
+
+**Coverage mandate (generation paths):** maximize the number of cases — **time is not a constraint, coverage is the goal.** Enumerate the *whole* surface (every route/page, list+detail, form, dialog, tab) and decompose each into many field-, control-, state-, and negative-level cases (render checks per column/section, one case per interactive control, search/no-match/filter/sort, pagination, full CRUD as separate C/R/U/D cases, boundary + negative inputs, auth/session/security, cross-cutting nav). A thorough sheet is typically dozens to 100+ cases — never stop at a handful of happy paths. On shared/production targets, preserve coverage safely via throwaway resources or presence-only checks for destructive controls. Full rules: `generate-explore.md` Step 3 / `generate-figma.md` Step 2.
 
 **On `--rerun-failed` / `--resume`, SKIP this entire step — including the human-review gate.** Reuse the existing `cases.yaml` from the report dir **as-is**; do NOT regenerate. Regenerating would change `case_id`s and break the rerun match against the existing `results.csv`. Jump straight to Step 3.
 

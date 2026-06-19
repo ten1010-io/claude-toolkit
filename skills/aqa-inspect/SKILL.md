@@ -136,6 +136,20 @@ Delegate execution to the engine reference (`references/engine-browser-use.md` o
 
 Write/update `results.csv` exactly per `references/results-csv.md` (column order, RFC 4180 quoting, empty-field rules). The `tester` column is filled from Step 1, not invented by the engine.
 
+**Selector cache persistence (single writer).** Each engine returns a per-case
+`resolved_selectors` array (see the engine refs). The orchestrator — never the
+parallel workers — merges these into `cases.yaml` as each case completes:
+
+- For each entry, write `selector` (and `selector_anchor` from `anchor`) into the
+  matching `steps[step]` of that `case_id`. This makes the cache available to the
+  next rerun/resume of this report dir.
+- When an entry has `changed: true`, append a drift record to
+  `reports/{ts}/selector-drift.json`:
+  `{ "case_id", "step", "old", "new": <selector> }`. A first-time fill
+  (`changed: false`) is **not** drift and is not recorded.
+- Because the single-threaded orchestrator is the only writer, `--parallel N`
+  causes no `cases.yaml` write race.
+
 Capture run metadata for the report:
 
 - `base_url` — from `--target` / the cases' `BASE_URL`.
@@ -172,6 +186,11 @@ First write `summary.json` to the report dir, capturing the run metadata (from S
   "needs_discussion": N
 }
 ```
+
+If `selector-drift.json` exists in the report dir, surface each record as a
+per-case "selector drift" badge in the report (token `{selector_drift}`,
+rendered only when present — see `report-template.html`). `summary.json` and
+`results.csv` are NOT modified for drift.
 
 Then read `references/report-template.html` and render it to `report.html` in the report dir. The template uses **two token styles** — fill **both**:
 
@@ -212,6 +231,9 @@ Each run writes into `reports/{YYYY-MM-DD_HH-MM-SS}/`:
 - `results.csv` — per-case rows (schema in `references/results-csv.md`).
 - `summary.json` — machine-readable run metadata + counts (`executed_at`, `finished_at`, `duration_seconds`, `engine`, `base_url`, `browser`, `commit_hash`, `tester`, `total`, `passed`, `failed`, `needs_discussion`). This is what `aqa-jira` reads for run metadata.
 - `report.html` — human-facing rendered report.
+- `selector-drift.json` — present only when a cached selector was re-resolved
+  differently during the run; drives the report's drift badges. Not read by
+  `aqa-jira`.
 - `artifacts/{case_id}/` — per-step screenshots (only with `--screenshot`).
 
 ## Notes
@@ -220,3 +242,6 @@ Each run writes into `reports/{YYYY-MM-DD_HH-MM-SS}/`:
 - This skill **NEVER creates Jira tickets.** Ticket creation is the separate `aqa-jira` skill and runs only behind its own human gate. `aqa-inspect` leaves the `jira_key` column empty for `aqa-jira` to fill later.
 - `priority` on a case is informational metadata only — `aqa-inspect` does not filter or select cases by priority.
 - `case_id` slugs are stable across regenerations; never renumber or reuse a retired id.
+- The per-step `selector` cache in `cases.yaml` survives `--rerun-failed` /
+  `--resume` (same report dir) and makes those runs fast. A fresh run regenerates
+  `cases.yaml` and re-harvests selectors. Field schema: `references/cases-yaml.md`.

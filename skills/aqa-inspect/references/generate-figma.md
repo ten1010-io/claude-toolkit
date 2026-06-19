@@ -186,8 +186,18 @@ From the analyzed components and inferred flows, enumerate candidate
 one happy path — decompose into field-, control-, and state-level cases:
 
 - **Happy path** per primary flow: fill inputs → submit → see success state.
+- **Every field** designed on the frame — one case (or more, with negatives)
+  per input, select, checkbox, radio, textarea, toggle, and date picker. Do NOT
+  collapse a form into a single "fill the form" case.
 - **Every interactive element** designed on the frame — each button, link, tab,
   toggle, dropdown, and form field gets its own render/behavior case.
+- **Every popup / overlay state** designed (modal, dialog, drawer,
+  confirm/alert popup, tooltip, toast, dropdown menu, popover) — a case to
+  trigger it open and verify content, plus a separate case per exit path
+  (close, confirm, cancel, backdrop/Esc).
+- **Every action / interaction type** the design implies — hover states, drag,
+  expand/collapse, upload/download, submit, keyboard (Enter/Esc) — one case
+  each.
 - **Render checks** — each section/heading present; each table column header
   enumerated explicitly; key values render.
 - **Error / negative / boundary paths** per designed error state — empty

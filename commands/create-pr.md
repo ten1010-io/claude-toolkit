@@ -2,14 +2,14 @@
 description: Generate a PR description from current branch changes and create a pull request. Use when the user says "PR 올려줘", "PR 작성해줘", "push PR", "create PR", or asks to ship their work.
 ---
 
-# pr
+# create-pr
 
 Analyzes all commits on the current branch (vs base branch), generates a PR title and description, then creates and pushes the pull request.
 
 ## Usage
 
 ```
-/pr [options]
+/create-pr [options]
 ```
 
 ## Options
@@ -22,20 +22,20 @@ Analyzes all commits on the current branch (vs base branch), generates a PR titl
 ## Examples
 
 ```
-/pr                        # PR to main
-/pr --base develop         # PR to develop
-/pr --draft                # Draft PR to main
+/create-pr                 # PR to main
+/create-pr --base develop  # PR to develop
+/create-pr --draft         # Draft PR to main
 ```
 
 ## What it does
 
 1. Detects base branch and analyzes `git diff <base>...HEAD`
 2. Reads full commit history since branch diverged
-3. Generates PR title (< 70 chars) and structured description
+3. Generates PR title (< 70 chars) and structured description, including a mandatory mermaid sequence diagram of the changed flow
 4. Pushes branch to remote with `-u` flag
 5. Creates PR via `gh pr create`
 
 ## Implementation
 
-This command is powered by the skill at `skills/pr/SKILL.md`.
+This command is powered by the skill at `skills/create-pr/SKILL.md`.
 Read that file for the full workflow.

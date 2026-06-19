@@ -78,9 +78,23 @@ field-, control-, and state-level cases. At minimum, per destination, cover:
 - **Render checks** — each major section/heading is present; each **table
   column header** is present (enumerate them explicitly, not "columns render");
   key rows/values render.
+- **Every field** — one case (or more, with negatives) per input, select,
+  checkbox, radio, textarea, toggle, slider, and date/month picker. Do NOT
+  collapse a form into a single "fill the form" case — each field is exercised
+  on its own (valid value, then its negative/boundary cases per the list below).
 - **Every interactive control** — each button, link, tab, toggle, dropdown,
   date/month picker, sort control, filter. One case per control (open it,
   verify its options/behavior). For destructive controls, see the safety note.
+- **Every popup / overlay** — each modal, dialog, drawer, confirm/alert popup,
+  tooltip, toast/snackbar, dropdown menu, context (right-click) menu, and
+  popover gets its OWN case: a case to **trigger it open** and verify its
+  content, and a **separate** case for each exit path (close button, backdrop
+  click, Esc, confirm, cancel). Enumerate every trigger that opens an overlay —
+  never assume "the modal works" from one open case.
+- **Every action / interaction type** — beyond clicks: hover-reveal, drag &
+  drop, expand/collapse, copy-to-clipboard, file upload, download, submit, and
+  keyboard interactions (Enter to submit, Esc to close, Tab order). One case
+  each.
 - **Search / filter / sort** — a matching query, a **no-match** query (empty
   state), each filter dropdown's options, each sortable column.
 - **Pagination** — controls present; page-size selector; next/prev where data

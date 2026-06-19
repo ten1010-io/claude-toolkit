@@ -90,6 +90,31 @@ The two `aqa-inspect` and `aqa-jira` commands form a human-gated QA pipeline:
 
 ---
 
+## Related: offline execution with `aqa-runner`
+
+`/aqa-inspect` needs Claude Code to run — it interprets each natural-language
+step with an LLM. That can't run inside an air-gapped / closed network.
+
+[**`ten1010-io/aqa-runner`**](https://github.com/ten1010-io/aqa-runner) closes
+that gap: it executes a **compiled** `cases.compiled.yaml` (a deterministic,
+LLM-free IR) with Playwright, requiring no Claude, no npm, and no network at run
+time. It ships as a self-contained per-OS bundle (portable Node + Chromium) you
+download from its Releases and run by double-click.
+
+```
+[Local dev, Claude available]            [Air-gapped machine]
+/aqa-inspect runs cases.yaml live   →    aqa-runner executes cases.compiled.yaml
+  → records success → compiles IR        → results.csv + report.html (pass/fail)
+            │                                        ▲
+            └──────── cases.compiled.yaml ───────────┘ (file transfer)
+```
+
+`aqa-runner` emits the **same** `results.csv` schema, so the human-review →
+`/aqa-jira` half of the pipeline works unchanged on results carried back out.
+Design + plan: [`docs/superpowers/specs/2026-06-19-aqa-runner-offline-design.md`](docs/superpowers/specs/2026-06-19-aqa-runner-offline-design.md).
+
+---
+
 ### /pr
 
 Analyzes branch changes, generates a PR title and description, then pushes and creates the PR.

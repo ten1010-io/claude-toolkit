@@ -238,6 +238,10 @@ Fill the schema skeleton. The full schema lives in
 `references/cases-yaml.md`; the abbreviated skeleton below shows only what this
 path must populate:
 
+> **Selector cache:** the Figma path has no live DOM, so leave every step's
+> `selector` empty — the first execution resolves and caches descriptors. (Field
+> defined in `cases-yaml.md`.)
+
 ```yaml
 name: "Login"
 description: "User authentication flow drafted from Figma"

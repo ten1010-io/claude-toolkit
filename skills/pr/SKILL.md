@@ -85,9 +85,12 @@ git diff <base>...HEAD
 - [ ] <checklist of how to verify the changes>
 ```
 
-**Sequence Diagram rules:**
-- Only include when changes involve meaningful interactions between 2+ components
-- Use actual class/module names from the code as participants
+**Sequence Diagram rules (MANDATORY):**
+- **ALWAYS include a mermaid `sequenceDiagram`** — it is a required section of every PR body, never omitted.
+- Use actual class/module names from the code as participants.
+- Wrap it in a ```` ```mermaid ```` fenced block so GitHub renders it.
+- Trace the request/data flow through the changed code: caller → changed components → external systems/responses.
+- If the change is small or touches a single component, still draw the minimal flow (e.g. `User ->> Component: action` / `Component -->> User: result`). Never replace the diagram with prose.
 
 ### Step 5: Push and create PR
 

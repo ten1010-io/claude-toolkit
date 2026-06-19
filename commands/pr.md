@@ -31,7 +31,7 @@ Analyzes all commits on the current branch (vs base branch), generates a PR titl
 
 1. Detects base branch and analyzes `git diff <base>...HEAD`
 2. Reads full commit history since branch diverged
-3. Generates PR title (< 70 chars) and structured description
+3. Generates PR title (< 70 chars) and structured description, including a mandatory mermaid sequence diagram of the changed flow
 4. Pushes branch to remote with `-u` flag
 5. Creates PR via `gh pr create`
 

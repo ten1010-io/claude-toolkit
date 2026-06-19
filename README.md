@@ -1,5 +1,7 @@
 # Claude Toolkit
 
+**English** | [한국어](README.ko.md)
+
 By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation and Git workflow.
 
 ## Installation

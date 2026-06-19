@@ -33,6 +33,7 @@
     .failure-reason { color: #991b1b; font-size: 13px; white-space: pre-wrap; }
     .expected-actual { color: #1f2937; font-size: 13px; white-space: pre-wrap; }
     .discuss-note { color: #92400e; font-size: 13px; white-space: pre-wrap; }
+    .drift { color: #b45309; font-size: 0.85em; margin-top: 4px; }
     .case-evidence { margin-top: 8px; }
     .case-evidence img { max-width: 100%; border: 1px solid #e5e7eb; border-radius: 8px; }
     .jira-link { font-size: 12px; color: #1d4ed8; }
@@ -82,6 +83,8 @@
       - Conditional sections are wrapped in IF-* / ENDIF-* markers: include the section ONLY
         when its field is non-empty; otherwise OMIT the whole section (never render an empty
         label or a broken <img src="">).
+      - Per-case tokens:
+        - {selector_drift}: rendered only when the case has a drift record in `selector-drift.json`; old → new descriptor.
       - After rendering, VALIDATE: (a) <div> open/close counts are equal, (b) no {{TOKEN}} or
         {token} placeholders remain, (c) the number of <div class="case"> equals the case count.
         A truncated case block nests every following case one level deeper — the report becomes
@@ -97,6 +100,10 @@
             </h3>
             <span class="case-meta">{tester} | {finished_at}</span>
         </div>
+
+        <!-- IF-selector_drift -->
+        <div class="drift">⚠ selector drift: {selector_drift}</div>
+        <!-- ENDIF-selector_drift -->
 
         <!-- IF-failure_reason -->
         <div class="detail">

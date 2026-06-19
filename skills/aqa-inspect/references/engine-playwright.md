@@ -170,6 +170,9 @@ JSON:
   (a stale cache re-resolved differently → drift). First-time fill of an empty
   `selector` is `changed: false`, `old: null`.
 - `old` — the previous descriptor when `changed: true`, else `null`.
+- **`sensitive` steps:** never capture a secret value into `selector` or
+  `anchor` — record only field identifiers (e.g. `{strategy: role, role:
+  textbox, name: Password}`), never the typed value.
 
 The engine MUST NOT write `cases.yaml` itself; it only returns this array. The
 orchestrator is the single writer (see `SKILL.md`).

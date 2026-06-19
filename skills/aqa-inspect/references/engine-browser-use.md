@@ -9,8 +9,9 @@ produced by `generate-figma.md` / `generate-explore.md`) and emit the **same**
 mechanism.
 
 This engine drives an AI-interpreted browser session: each natural-language
-`step.action` is interpreted at runtime against the live page state, with no
-pre-baked selectors.
+`step.action` is interpreted at runtime when no cached descriptor is present; a
+machine-learned `selector` descriptor, when present, is resolved to an element
+index directly (see Selector write-back).
 
 ## Dependency Check + `BROWSER_USE_CMD`
 
@@ -76,7 +77,17 @@ If `browser-use state` output contains `"Your connection is not private"` or
 For each entry in the case's `steps` (interpret the natural-language `action` at
 runtime):
 
-1. Read the current page via `{BROWSER_USE_CMD} --session case_{case_id} state`.
+0. **Cached descriptor present** (`step.selector`) — resolve it to an element
+   index without an AI `state` interpretation: build a CSS query from the
+   descriptor (`strategy: css` → its `css`; `role`/`label`/`text` → an
+   equivalent attribute/text query) and run
+   `{BROWSER_USE_CMD} --session case_{case_id} eval "<querySelector expr that
+   returns the element's browser-use index>"`. If it returns one element AND
+   (`selector_anchor` absent OR the element text contains the substituted
+   anchor) ⇒ use that index, skipping step 1's `state` read.
+1. Read the current page via `{BROWSER_USE_CMD} --session case_{case_id} state`
+   — **only** when there is no usable cached descriptor (absent, miss, or anchor
+   mismatch). Resolve from `action`, then record the descriptor for write-back.
 2. Interpret `action` and run the matching command:
    - **Navigation** → `open "{URL}"`
    - **Input** → `state` to locate the field index → `input {index} "{value}"`
@@ -115,6 +126,34 @@ session:
 {BROWSER_USE_CMD} --session case_{case_id} cookies clear
 {BROWSER_USE_CMD} --session case_{case_id} close
 ```
+
+## Selector write-back (per-case result)
+
+For each step resolved at runtime (cache miss / anchor mismatch / first fill),
+report the resolved descriptor so the orchestrator can persist it into
+`cases.yaml`. Per case, return:
+
+```json
+"resolved_selectors": [
+  { "step": 3,
+    "selector": { "strategy": "role", "role": "button", "name": "Sign in" },
+    "anchor": "Sign in",
+    "changed": true,
+    "old": { "strategy": "role", "role": "button", "name": "Log in" } }
+]
+```
+
+Field semantics are identical to the Playwright engine: `step` is 0-based;
+`changed: true` only when an existing descriptor was overwritten (drift), else
+`false` with `old: null`. The descriptor schema (`strategy` ∈
+`role | label | text | css`) is defined in `cases-yaml.md`.
+
+- **`sensitive` steps:** never capture a secret value into `selector` or
+  `anchor` — record only field identifiers (e.g. `{strategy: role, role:
+  textbox, name: Password}`), never the typed value.
+
+The engine never writes `cases.yaml`; the orchestrator is the single writer
+(see `SKILL.md`).
 
 ## Result Determination → `results.csv`
 

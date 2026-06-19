@@ -158,6 +158,11 @@ cases:
       - action: "Enter ${password} in the password field"
         sensitive: true
       - action: "Click the Create account button and wait for page load"
+        selector:
+          strategy: role
+          role: button
+          name: "Create account"
+        selector_anchor: "Create account"
       - action: "Verify the account-created confirmation is visible"
     cleanup:
       - type: clear_cookies
@@ -195,6 +200,17 @@ cases:
     cleanup:
       - type: clear_cookies
 ```
+
+### Harvest selectors while exploring
+
+Exploration already inspects the live DOM. For each step whose target element
+was located during exploration, emit a `selector` descriptor (and
+`selector_anchor` when a stable visible text exists) per the schema in
+`cases-yaml.md`, using the preference order `role`+`name` > `label` > `text` >
+`css`. This pre-warms the cache so the **first** execution is already fast.
+Steps whose element could not be confidently located are left without a
+`selector` (execution fills them on run 1). Never put a `sensitive` value into a
+descriptor.
 
 Notes:
 

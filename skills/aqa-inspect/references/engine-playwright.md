@@ -8,11 +8,14 @@ produced by `generate-figma.md` / `generate-explore.md`) and emit the **same**
 `results.csv` schema (see `results-csv.md`). The only difference is the runtime
 mechanism.
 
-The defining property of this engine: **selectors are NOT pre-baked in
-`cases.yaml`.** Each case carries only natural-language `steps`. This engine
-resolves each step to a concrete Playwright locator **at runtime** by reading
-the live page's accessibility snapshot and DOM. Runtime DOM resolution is the
-whole point of this engine.
+The defining property of this engine: each case carries natural-language
+`steps`, and each step **may optionally** carry a cached `selector` descriptor
+(schema in `cases-yaml.md`). This engine tries the cached descriptor first and
+falls back to resolving the step to a concrete Playwright locator **at runtime**
+by reading the live page's accessibility snapshot and DOM whenever no cached
+descriptor is present, the cached locator misses, or its anchor no longer
+matches. Runtime DOM resolution remains the reliable fallback that keeps a case
+runnable even when the cache is empty or stale.
 
 ## Dependency Check
 
@@ -39,22 +42,26 @@ Please try again after installation.
 
 Drive a Chromium page directly. For each natural-language `step.action`:
 
-1. **Read the page** — call `page.accessibility.snapshot()` (and inspect the DOM
-   where needed) to enumerate the current interactive surface.
-2. **Resolve to a concrete locator** at runtime, preferring stable,
-   human-meaningful queries in this order:
-   - `page.getByRole(role, { name })`
-   - `page.getByLabel(label)`
-   - `page.getByText(text)`
-   - a CSS selector as a last resort.
-3. **Act** — `fill` / `click` / `goto` / etc. against the resolved locator.
-   Apply `${key}` substitution from the case's `test_data` first, and mask any
-   step marked `sensitive: true` as `****` in logs/output.
-4. **Assert** — verify the expected post-condition (success state, error/
-   validation message, navigation) from the snapshot / DOM.
+1. **Cached descriptor present** — map `step.selector` to a locator:
+   - `strategy: role` → `page.getByRole(role, { name })`
+   - `strategy: label` → `page.getByLabel(label)`
+   - `strategy: text` → `page.getByText(text)`
+   - `strategy: css` → `page.locator(css)`
+   Apply `${key}` substitution to descriptor values first. If the locator
+   resolves to exactly one element AND (`selector_anchor` is absent OR the
+   element's visible text contains the substituted anchor) ⇒ use it.
+2. **No descriptor, locator misses, or anchor mismatch** — read the page
+   (`page.accessibility.snapshot()` / DOM) and resolve from `step.action` at
+   runtime, preferring `getByRole` > `getByLabel` > `getByText` > CSS. Record
+   the resolved descriptor for write-back (see "Selector write-back").
+3. **Act** — `fill` / `click` / `goto` against the resolved locator; apply
+   `${key}` substitution; mask any `sensitive: true` step as `****`.
+4. **Assert** — verify the expected post-condition. The cache never bypasses
+   this assertion; a wrong-element match still fails here.
 
-No selector is read from `cases.yaml`; the locator is always derived from the
-live DOM at the moment the step runs.
+When no cached descriptor is present (or it no longer matches), the locator is
+derived from the live DOM at the moment the step runs — the cache is a fast path
+over runtime resolution, never a replacement for the step assertion.
 
 ## Concrete Approach: per-run `run-case.mjs` driver
 
@@ -83,7 +90,8 @@ const page = await context.newPage();
 
 const result = { case_id, status: 'pass', finished_at: null,
                  failure_reason: '', expected_vs_actual: '',
-                 evidence_path: '', discuss_note: '' };
+                 evidence_path: '', discuss_note: '',
+                 resolved_selectors: [] };  // descriptors resolved at runtime, for write-back
 
 // Highlight the element under test with a red box before capturing evidence,
 // so the report reader instantly sees WHERE to look. Remove the box afterward.
@@ -106,7 +114,9 @@ let lastLocator = null;
 try {
   for (const [i, step] of input.steps.entries()) {
     const tree = await page.accessibility.snapshot();  // runtime DOM/a11y read
-    const locator = resolveLocator(page, step.action, tree);  // getByRole/getByText/getByLabel/CSS
+    const locator = resolveLocator(page, step, tree);  // try step.selector cache first, else resolve from step.action
+    // on a runtime resolution (cache miss / anchor mismatch / first fill),
+    // push the resolved descriptor onto result.resolved_selectors (step = i, changed/old per drift)
     lastLocator = locator;
     await act(page, locator, step, input.test_data);   // fill/click/goto, honor sensitive
     await assertStep(page, step);                      // verify post-condition
@@ -135,6 +145,37 @@ try {
 
 process.stdout.write(JSON.stringify(result));
 ```
+
+## Selector write-back (result JSON)
+
+`run-case.mjs` returns the resolved descriptor for each step that it resolved at
+runtime (cache miss / anchor mismatch / first fill), so the orchestrator can
+persist them into `cases.yaml`. Add a `resolved_selectors` array to the result
+JSON:
+
+```json
+"resolved_selectors": [
+  { "step": 3,
+    "selector": { "strategy": "role", "role": "button", "name": "Sign in" },
+    "anchor": "Sign in",
+    "changed": true,
+    "old": { "strategy": "role", "role": "button", "name": "Log in" } }
+]
+```
+
+- `step` — 0-based index into the case's `steps`.
+- `selector` — the descriptor the engine resolved at runtime.
+- `anchor` — the visible text captured as `selector_anchor` (may be empty).
+- `changed` — `true` only when an **existing** descriptor was overwritten
+  (a stale cache re-resolved differently → drift). First-time fill of an empty
+  `selector` is `changed: false`, `old: null`.
+- `old` — the previous descriptor when `changed: true`, else `null`.
+- **`sensitive` steps:** never capture a secret value into `selector` or
+  `anchor` — record only field identifiers (e.g. `{strategy: role, role:
+  textbox, name: Password}`), never the typed value.
+
+The engine MUST NOT write `cases.yaml` itself; it only returns this array. The
+orchestrator is the single writer (see `SKILL.md`).
 
 **Screenshot policy.** Default runs capture **nothing per step** — passing
 cases pay zero screenshot overhead. Evidence is captured only at the **failure

@@ -43,7 +43,7 @@ End-to-end AI QA in one command — **generates** test cases (from a Figma desig
 /aqa-inspect --target https://app.example.com --engine playwright
 ```
 
-**Output:** a report directory containing `results.csv` (per-case `status`: `pass` / `fail` / `needs_discussion`, plus tester, time, reasons), `summary.json` (run metadata + counts), and `report.html`.
+**Output:** a report directory containing `results.csv` (per-case `status`: `pass` / `fail` / `needs_discussion`, plus tester, time, reasons), `summary.json` (run metadata + counts), and `report.html`. Either engine additionally writes `cases.compiled.yaml` — a deterministic, LLM-free IR of the passing cases for offline re-execution by [`aqa-runner`](https://github.com/ten1010-io/aqa-runner).
 
 **Prerequisites:**
 - [browser-use](https://github.com/browser-use/browser-use) CLI (browser-use engine) or [Playwright](https://playwright.dev/) (playwright engine)
@@ -103,10 +103,15 @@ LLM-free IR) with Playwright, requiring no Claude, no npm, and no network at run
 time. It ships as a self-contained per-OS bundle (portable Node + Chromium) you
 download from its Releases and run by double-click.
 
+An `/aqa-inspect` run (either engine) produces that IR directly — no manual
+authoring. As it executes each passing case it records the resolved
+operation, selector, value, and assertion, and writes `cases.compiled.yaml` into
+the report dir. (Playwright yields sturdier selectors; browser-use works too.)
+
 ```
 [Local dev, Claude available]            [Air-gapped machine]
-/aqa-inspect runs cases.yaml live   →    aqa-runner executes cases.compiled.yaml
-  → records success → compiles IR        → results.csv + report.html (pass/fail)
+/aqa-inspect (run live)             →    aqa-runner executes cases.compiled.yaml
+  → emits cases.compiled.yaml            → results.csv + report.html (pass/fail)
             │                                        ▲
             └──────── cases.compiled.yaml ───────────┘ (file transfer)
 ```

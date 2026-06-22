@@ -5,7 +5,7 @@ description: End-to-end AI QA — generate test cases (from a Figma design or by
 
 # AQA Inspect - End-to-End AI QA Orchestrator
 
-Orchestrates the full QA loop in one command: **generate** test cases (from a Figma design or by exploring a live URL), **execute** them with a selectable engine, **track** per-case results into `results.csv`, and **render** an HTML report. Detailed mechanics are delegated to the files in `references/`; this document is the orchestration spine.
+Orchestrates the full QA loop in one command: **generate** test cases (from a Figma design or by exploring a live URL), **execute** them with a selectable engine, **track** per-case results into `results.csv`, and **render** an HTML report. Either engine additionally emits `cases.compiled.yaml` — a deterministic, LLM-free IR of the passing cases for offline re-execution by [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Detailed mechanics are delegated to the files in `references/`; this document is the orchestration spine.
 
 ## Language
 
@@ -130,6 +130,7 @@ reports/{YYYY-MM-DD_HH-MM-SS}/
   results.csv             ← per-case rows (see references/results-csv.md)
   summary.json            ← run metadata + counts (written in Step 6)
   report.html             ← rendered report (Step 6)
+  cases.compiled.yaml     ← offline IR for aqa-runner — both engines (Step 4, see references/compile-ir.md)
 ```
 
 In both reuse modes: read the existing `cases.yaml` and `results.csv` from that dir, **skip** rows with `status=pass`, and re-run only rows with `status=fail` or `status=needs_discussion`. **Match each re-run case to its existing `results.csv` row by `case_id`; update that row IN PLACE, never append a duplicate.** Preserve untouched `pass` rows.
@@ -155,6 +156,27 @@ parallel workers — merges these into `cases.yaml` as each case completes:
   (`changed: false`) is **not** drift and is not recorded.
 - Because the single-threaded orchestrator is the only writer, `--parallel N`
   causes no `cases.yaml` write race.
+
+**IR compile output — `cases.compiled.yaml` (both engines).** Each engine
+returns a per-case `compiled_steps` array (see `engine-playwright.md` /
+`engine-browser-use.md`). The orchestrator — the single writer — assembles these
+into `reports/{ts}/cases.compiled.yaml`, the deterministic offline IR consumed
+by [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules:
+`references/compile-ir.md`. In short:
+
+- Include **only** cases whose `status=pass`; skip `fail` / `needs_discussion`
+  (no trustworthy structured form).
+- Emit `ir_version: 1`, copy `name` / `description` from `cases.yaml`, and for
+  each passing case emit `case_id`, `name`, `expected_result`, the case's
+  `compiled_steps` as `steps`, and `cleanup` copied from the source case.
+- **Masking:** never write a secret value — sensitive steps carry `value_ref`
+  only (the `test_data` key), never the literal, same as the `****` rule.
+- **Both engines emit it.** browser-use selectors are AI-resolved and may be
+  slightly less stable than playwright's live-DOM descriptors; the IR is still
+  valid, and a flaky offline replay can be re-recorded under playwright.
+- **`--rerun-failed` / `--resume`:** regenerate the file from the **union** of
+  all currently-passing cases in the report dir (previously-passing + newly
+  passing), keyed by `case_id`, so the IR reflects every green case.
 
 Capture run metadata for the report:
 
@@ -232,7 +254,8 @@ Report: reports/{timestamp}/report.html
 - `references/generate-figma.md` — generate `cases.yaml` from a `--figma <url>` design, with mandatory review.
 - `references/generate-explore.md` — generate `cases.yaml` by exploring a live `--target <url>`, with mandatory review.
 - `references/engine-browser-use.md` — browser-use engine contract: AI-interpreted session execution → `results.csv`.
-- `references/engine-playwright.md` — Playwright engine contract: runtime DOM resolution via a per-run `run-case.mjs` driver → `results.csv`.
+- `references/engine-playwright.md` — Playwright engine contract: runtime DOM resolution via a per-run `run-case.mjs` driver → `results.csv` + `compiled_steps`.
+- `references/compile-ir.md` — how a run (either engine) emits `cases.compiled.yaml` (IR v1) for offline execution by `aqa-runner`.
 - `references/report-template.html` — HTML report template rendered in Step 6.
 
 ## Outputs
@@ -245,6 +268,11 @@ Each run writes into `reports/{YYYY-MM-DD_HH-MM-SS}/`:
 - `selector-drift.json` — present only when a cached selector was re-resolved
   differently during the run; drives the report's drift badges. Not read by
   `aqa-jira`.
+- `cases.compiled.yaml` — emitted by **both engines.** The deterministic,
+  LLM-free IR (v1) of every passing case — hand this to
+  [`aqa-runner`](https://github.com/ten1010-io/aqa-runner) to re-run the suite
+  offline (e.g. in an air-gapped network). Not read by `aqa-jira`. See
+  `references/compile-ir.md`.
 - `artifacts/{case_id}/` — per-step screenshots (only with `--screenshot`).
 
 ## Notes

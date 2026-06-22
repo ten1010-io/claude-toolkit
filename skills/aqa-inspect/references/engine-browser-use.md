@@ -155,6 +155,44 @@ Field semantics are identical to the Playwright engine: `step` is 0-based;
 The engine never writes `cases.yaml`; the orchestrator is the single writer
 (see `SKILL.md`).
 
+## Compiled-step capture (per-case result) — for the offline IR
+
+Like the Playwright engine, browser-use also returns, for **every step it runs**,
+the structured IR form it executed, in step order, as a `compiled_steps` array.
+The orchestrator assembles these into `reports/{ts}/cases.compiled.yaml` (IR v1)
+for [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules and the
+op/assert mapping: `references/compile-ir.md`.
+
+Each entry is a ready-to-serialize IR step:
+
+- the resolved `op` — `goto` / `fill` / `click` / `select` / `check` / `hover` /
+  `press`, or `assert` for a verification step;
+- the resolved `selector` descriptor (the **same** one captured for the selector
+  cache above) — omitted for `goto`, a page-level `press`, and `url_matches`;
+- `value` for a non-sensitive fill/select, OR `value_ref: "<test_data key>"` +
+  `sensitive: true` for a sensitive step — **never the secret value**;
+- for a verification step, the `assert: { type, … }` object per `compile-ir.md`.
+
+```json
+"compiled_steps": [
+  { "op": "goto", "url": "https://app.example.com/login" },
+  { "op": "fill", "selector": {"strategy":"label","label":"Email"}, "value": "testuser@example.com" },
+  { "op": "fill", "selector": {"strategy":"label","label":"Password"}, "value_ref": "password", "sensitive": true },
+  { "op": "click", "selector": {"strategy":"role","role":"button","name":"Sign in"} },
+  { "op": "assert", "assert": {"type":"visible","selector":{"strategy":"text","text":"Dashboard"}} }
+]
+```
+
+- Populate `compiled_steps` only when the case **passes**; the orchestrator
+  discards any partial array from a failed case.
+- **Masking invariant:** never put a secret value into `compiled_steps` — a
+  sensitive step carries `value_ref` only.
+- **Selector quality note:** browser-use resolves selectors via AI
+  interpretation, so a descriptor may occasionally be less stable than the
+  Playwright (live-DOM) engine's. The emitted IR is still valid; if an offline
+  `aqa-runner` replay misses an element, re-running that case under the
+  Playwright engine produces a sturdier descriptor.
+
 ## Result Determination → `results.csv`
 
 `results.csv` is the integration contract defined in `results-csv.md`. That file

@@ -2,7 +2,9 @@
 
 > **For agentic workers:** this plan edits a prompt-based skill (instruction docs + a per-run Node driver the skill generates). There are no unit tests for the skill itself; the deliverable is verified by an end-to-end run feeding the output to `aqa-runner`. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Make `aqa-inspect` emit a deterministic `cases.compiled.yaml` (IR v1) as a byproduct of a successful **playwright-engine** run, so `aqa-runner` can execute it offline with no LLM.
+> **Amendment (post-review):** scope extended from playwright-only to **both engines** (playwright and browser-use). browser-use already write-backs resolved selectors (selector-cache work), so it can return `compiled_steps` too; its AI-resolved selectors are slightly less stable but still valid IR. Wherever this plan says "playwright engine only," read "both engines."
+
+**Goal:** Make `aqa-inspect` emit a deterministic `cases.compiled.yaml` (IR v1) as a byproduct of a successful run (either engine), so `aqa-runner` can execute it offline with no LLM.
 
 **Architecture:** "Compile by recording." The playwright engine already resolves, per step, the locator (selector cache), the operation (`act()`), and the assertion (`assertStep()`). We extend the per-run driver to return each step's **structured** form (`op` + `selector` + `value`/`value_ref` + `assert`), and the orchestrator assembles those into `cases.compiled.yaml` in the report dir for every **passing** case. Browser-use engine is screenshot-based and cannot produce deterministic ops, so it does not compile.
 
@@ -15,7 +17,7 @@
 - Finite assert types: `visible` · `hidden` · `text_contains` · `url_matches` · `enabled` · `disabled` · `value_equals` · `count`.
 - Selector descriptor: `{ strategy: role|label|text|css, ... }`, preference `role`+`name` > `label` > `text` > `css` (same as `cases-yaml.md`).
 - **Secrets never baked into IR.** A `sensitive` step emits `value_ref: <key>` (the `test_data` key name), never the literal secret value. The value lives only in `secrets.env` at `aqa-runner` run time.
-- Compile is **playwright-engine only**. browser-use runs do NOT emit `cases.compiled.yaml`.
+- Compile runs on **both engines** (playwright and browser-use); each returns `compiled_steps`. (Superseded the original playwright-only scope — see Amendment.)
 - Only **passing** cases (`status=pass`) are compiled — a step that never executed cleanly has no trustworthy structured form.
 - `cases.compiled.yaml` is written to the report dir next to `results.csv`; it never replaces the natural-language `cases.yaml`.
 - No new CLI flag (YAGNI) — emission is automatic on playwright runs.

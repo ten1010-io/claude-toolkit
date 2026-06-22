@@ -1,10 +1,11 @@
-# Compiling `cases.compiled.yaml` (IR v1) — playwright engine only
+# Compiling `cases.compiled.yaml` (IR v1)
 
-This reference describes how the **playwright** execution engine turns a
-successful run into a deterministic, LLM-free **IR** file —
-`cases.compiled.yaml` — that the standalone
+This reference describes how an `aqa-inspect` execution turns a successful run
+into a deterministic, LLM-free **IR** file — `cases.compiled.yaml` — that the
+standalone
 [`ten1010-io/aqa-runner`](https://github.com/ten1010-io/aqa-runner) executes
-offline (no Claude, no network).
+offline (no Claude, no network). **Both engines** (playwright and browser-use)
+emit it.
 
 > **Schema authority:** the IR contract is owned by `aqa-runner`
 > (`schema/ir.md`). This file mirrors **IR v1**; keep them in sync. If they ever
@@ -12,9 +13,11 @@ offline (no Claude, no network).
 
 ## When it runs
 
-- **playwright engine only.** The browser-use engine is AI-screenshot based and
-  produces no deterministic per-step operations, so a browser-use run does
-  **not** emit `cases.compiled.yaml`.
+- **Both engines.** playwright and browser-use each return a `compiled_steps`
+  array per case (see the engine refs), which the orchestrator assembles into
+  the IR. browser-use selectors are AI-resolved and may be slightly less stable
+  than playwright's live-DOM descriptors — the IR is still valid; a flaky
+  offline replay can be re-recorded under the playwright engine.
 - **Passing cases only.** Only cases that finished `status=pass` are compiled — a
   step that never executed cleanly has no trustworthy structured form. `fail`
   and `needs_discussion` cases are skipped.
@@ -24,11 +27,11 @@ offline (no Claude, no network).
 
 ## "Compile by recording"
 
-The playwright engine already, per step, (a) resolves the locator (the selector
-cache), (b) decides the operation in `act()`, and (c) verifies a post-condition
-in `assertStep()`. Compilation is just **persisting those decisions** in
-structured form. The engine driver returns a `compiled_steps` array per case
-(see `engine-playwright.md`); the orchestrator assembles those into the IR.
+Each engine already, per step, (a) resolves the locator (the selector cache),
+(b) decides the operation it performs, and (c) verifies a post-condition.
+Compilation is just **persisting those decisions** in structured form. Each
+engine returns a `compiled_steps` array per case (see `engine-playwright.md` /
+`engine-browser-use.md`); the orchestrator assembles those into the IR.
 
 ## IR v1 schema (mirror of `aqa-runner/schema/ir.md`)
 

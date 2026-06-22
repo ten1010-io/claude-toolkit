@@ -91,7 +91,8 @@ const page = await context.newPage();
 const result = { case_id, status: 'pass', finished_at: null,
                  failure_reason: '', expected_vs_actual: '',
                  evidence_path: '', discuss_note: '',
-                 resolved_selectors: [] };  // descriptors resolved at runtime, for write-back
+                 resolved_selectors: [],   // descriptors resolved at runtime, for write-back
+                 compiled_steps: [] };      // structured IR steps (passing cases) → cases.compiled.yaml
 
 // Highlight the element under test with a red box before capturing evidence,
 // so the report reader instantly sees WHERE to look. Remove the box afterward.
@@ -176,6 +177,45 @@ JSON:
 
 The engine MUST NOT write `cases.yaml` itself; it only returns this array. The
 orchestrator is the single writer (see `SKILL.md`).
+
+## Compiled-step capture (result JSON) — for the offline IR
+
+In addition to `resolved_selectors`, the driver records, for **every step it
+runs**, the structured IR form it actually executed, and returns them in step
+order as a `compiled_steps` array. This is the raw material the orchestrator
+assembles into `reports/{ts}/cases.compiled.yaml` (IR v1) for
+[`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full IR rules and the
+op/assert mapping live in `references/compile-ir.md`.
+
+Each entry is a ready-to-serialize IR step:
+
+- the resolved `op` — whichever of `goto` / `fill` / `click` / `select` /
+  `check` / `hover` / `press` it performed, or `assert` for a verification step;
+- the resolved `selector` descriptor (the **same** one captured for the selector
+  cache) — omitted for `goto`, a page-level `press`, and `url_matches`;
+- `value` for a non-sensitive fill/select (the concrete value used), OR
+  `value_ref: "<test_data key>"` + `sensitive: true` for a sensitive step;
+- for a verification step, the `assert: { type, … }` object per
+  `compile-ir.md`'s assert-type table.
+
+```json
+"compiled_steps": [
+  { "op": "goto", "url": "https://app.example.com/login" },
+  { "op": "fill", "selector": {"strategy":"label","label":"Email"}, "value": "testuser@example.com" },
+  { "op": "fill", "selector": {"strategy":"label","label":"Password"}, "value_ref": "password", "sensitive": true },
+  { "op": "click", "selector": {"strategy":"role","role":"button","name":"Sign in"} },
+  { "op": "assert", "assert": {"type":"visible","selector":{"strategy":"text","text":"Dashboard"}} }
+]
+```
+
+- Populate `compiled_steps` only when the case **passes**. On failure the driver
+  may return a partial array; the orchestrator discards it (only passing cases
+  compile).
+- **Masking invariant:** `compiled_steps` MUST never contain a secret value — a
+  sensitive step carries `value_ref` only, never the typed value, consistent
+  with the `sensitive: true` / `****` rule used everywhere else.
+- This array, like `resolved_selectors`, is returned by the worker; the
+  orchestrator is the single writer of `cases.compiled.yaml`.
 
 **Screenshot policy.** Default runs capture **nothing per step** — passing
 cases pay zero screenshot overhead. Evidence is captured only at the **failure

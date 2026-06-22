@@ -91,6 +91,7 @@ git diff <base>...HEAD
 - Wrap it in a ```` ```mermaid ```` fenced block so GitHub renders it.
 - Trace the request/data flow through the changed code: caller → changed components → external systems/responses.
 - If the change is small or touches a single component, still draw the minimal flow (e.g. `User ->> Component: action` / `Component -->> User: result`). Never replace the diagram with prose.
+- **Never put a `;` in message text** — mermaid treats `;` as a statement separator and the diagram fails to render (`Parse error ... got 'NEWLINE'`). Use a comma or dash instead. Likewise avoid unbalanced parentheses in `participant ... as` aliases.
 
 ### Step 5: Push and create PR
 

@@ -17,7 +17,6 @@ cases:
   - case_id: feature-001
     name: "Case Name"
     priority: critical|high|medium|low
-    expected_result: "pass|fail"
     test_data:
       BASE_URL: "https://app.example.com"
       key: "value"
@@ -45,10 +44,26 @@ cases:
 | `case_id` | **yes** | Stable lowercase slug — feature prefix + zero-padded sequence, e.g. `login-001`. This is the join key for rerun-match (`--rerun-failed` / `--resume`) and Jira dedup. Never renumber or reuse a retired id; new cases get new trailing numbers. Matches the `case_id` column in `results-csv.md`. |
 | `name` | yes | Human-readable case title (becomes the Jira summary downstream). |
 | `priority` | optional | `critical` / `high` / `medium` / `low`. **Informational metadata only** — `aqa-inspect` does NOT filter or select cases by priority. |
-| `expected_result` | yes | `"pass"` for happy paths; `"fail"` for error paths — the error/validation state appearing is the expected normal behavior, so such a case is judged **pass** when the error is correctly displayed. |
 | `test_data` | yes | `key: value` map. **Must always include `BASE_URL`** (the live service root, from `--target <url>`). Other keys are feature inputs (e.g. `email`, `password`). |
 | `steps` | yes | Ordered list of step entries (see below). |
 | `cleanup` | yes | Per-case cleanup actions; `- type: clear_cookies` is the default for every case. |
+
+### Negative scenarios (no `expected_result` field)
+
+There is **no `expected_result` field.** A case encodes its full expectation in
+its steps — a case passes when every step succeeds and fails when any step
+fails. This applies to negative/error scenarios too: express the expected
+error or blocked state as the **final verification step**, written so that the
+correct behavior makes it succeed. Examples:
+
+- "wrong password" → final step *"Verify an invalid-credentials error message is
+  displayed"* (succeeds when the error shows).
+- "empty required field blocks submit" → final step *"Verify the Create button
+  is disabled"* (succeeds when it is disabled).
+
+Never write a case that relies on a step *throwing* to mean "pass" — the blocked
+state must be asserted positively. (This keeps the live-engine verdict and the
+offline `aqa-runner` verdict identical: both judge purely on step success.)
 
 ### Per step
 
@@ -117,7 +132,6 @@ cases:
   - case_id: login-001
     name: "Log in with valid credentials"
     priority: critical          # informational only — not used for filtering
-    expected_result: "pass"
     test_data:
       BASE_URL: "https://app.example.com"
       email: "testuser@example.com"
@@ -139,8 +153,7 @@ cases:
 
   - case_id: login-002
     name: "Log in with wrong password"
-    priority: high
-    expected_result: "fail"     # the error appearing IS the expected behavior
+    priority: high              # negative case: the final step asserts the error state
     test_data:
       BASE_URL: "https://app.example.com"
       email: "testuser@example.com"

@@ -79,7 +79,7 @@ resolution, and assertion logic are elided):
 import { chromium } from 'playwright';
 import { mkdirSync } from 'node:fs';
 
-const input = JSON.parse(await readStdin());           // { case_id, name, test_data, steps, expected_result, headed, screenshot }
+const input = JSON.parse(await readStdin());           // { case_id, name, test_data, steps, headed, screenshot }
 const { case_id } = input;
 const artifactsDir = `artifacts/${case_id}`;
 mkdirSync(artifactsDir, { recursive: true });
@@ -127,8 +127,9 @@ try {
       result.evidence_path = shot;
     }
   }
-  // reconcile against expected_result to set pass/fail/needs_discussion;
-  // if that lands on fail/needs_discussion, capture failure evidence as below
+  // status is pass when every step — including the final verification/assert
+  // step — passed; if any step failed (or the outcome is ambiguous), set
+  // fail/needs_discussion and capture failure evidence as below
 } catch (err) {
   result.status = 'fail';
   result.failure_reason = String(err.message ?? err);
@@ -183,7 +184,7 @@ orchestrator is the single writer (see `SKILL.md`).
 In addition to `resolved_selectors`, the driver records, for **every step it
 runs**, the structured IR form it actually executed, and returns them in step
 order as a `compiled_steps` array. This is the raw material the orchestrator
-assembles into `reports/{ts}/cases.compiled.yaml` (IR v1) for
+assembles into `reports/{ts}/cases.compiled.yaml` (IR v2) for
 [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full IR rules and the
 op/assert mapping live in `references/compile-ir.md`.
 
@@ -219,8 +220,8 @@ Each entry is a ready-to-serialize IR step:
 
 **Screenshot policy.** Default runs capture **nothing per step** — passing
 cases pay zero screenshot overhead. Evidence is captured only at the **failure
-moment**: when a step throws, or when the `expected_result` reconciliation
-lands on `fail` / `needs_discussion`, screenshot the page state right then into
+moment**: when a step throws, or when a verification step's condition is not met
+and the case lands on `fail` / `needs_discussion`, screenshot the page state right then into
 `artifacts/{case_id}/` and set `evidence_path`. This failure-moment capture is
 mandatory and independent of `--screenshot`. With `--screenshot` (full capture
 mode), additionally capture every step for every case as shown in the loop.
@@ -258,17 +259,17 @@ fields, same status semantics.
 
 ### Determining `status`
 
-Determine the per-case outcome from the final page state / screenshots and the
-case's `expected_result`:
+Determine the per-case outcome purely from whether the case's steps succeeded:
 
-- **`expected_result: "pass"`** → every step succeeded and the success state is
-  observed ⇒ `status = pass`; any step failed or the success state is missing ⇒
-  `status = fail`.
-- **`expected_result: "fail"`** → the expected error/validation state appeared
-  ⇒ `status = pass`; no error appeared (the action unexpectedly succeeded) ⇒
-  `status = fail`.
+- **Every step — including the final verification/assert step — succeeded** ⇒
+  `status = pass`.
+- **Any step failed** — the engine could not perform the action, or a
+  verification condition was not met ⇒ `status = fail`.
 - When pass/fail cannot be confidently determined ⇒ `status = needs_discussion`
   (see the rule below).
+
+Negative scenarios need no special handling — their final asserting step passes
+exactly when the expected error/blocked state appears (see `cases-yaml.md`).
 
 ### Mapping the `run-case.mjs` JSON result → CSV fields
 

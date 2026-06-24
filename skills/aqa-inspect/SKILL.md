@@ -11,7 +11,7 @@ Orchestrates the full QA loop in one command: **generate** test cases (from a Fi
 
 **CRITICAL:** You MUST detect the user's language from their messages and use that language for ALL interactions — status updates, questions, review prompts, error messages, result summaries, and reports. Do NOT use the English text written in this skill document as-is when communicating with the user. Translate into the user's language. The English in this document is only a reference for the AI.
 
-This extends to **generated artifacts**: write each `cases.yaml` case `name` and every `steps[].action` in the user's detected language too (not just chat messages). There is no fixed default language — always mirror whatever language the user is speaking. Only machine-stable tokens stay in English/ASCII: `case_id` slugs, YAML keys, and `expected_result` values (`pass`/`fail`).
+This extends to **generated artifacts**: write each `cases.yaml` case `name` and every `steps[].action` in the user's detected language too (not just chat messages). There is no fixed default language — always mirror whatever language the user is speaking. Only machine-stable tokens stay in English/ASCII: `case_id` slugs and YAML keys.
 
 ## Arguments
 
@@ -40,9 +40,24 @@ Follow these steps **exactly**.
 Interrupt the user at most **twice** at the start. Collect every applicable start-of-run question into batched AskUserQuestion calls (max 4 questions per call); each question is skipped individually when its flag/env already supplies the value:
 
 - **Round 1 (always at most one call):** engine (Step 0) · tester (Step 1) · rerun offer (Step 0.5) · "does the target require login?" (Step 1.5).
-- **Round 2 (conditional follow-up, only if needed):** auth email · auth password (Step 1.5, when login = yes) · Figma token · target URL (Figma path, see `generate-figma.md`).
+- **Round 2 (one consolidated call, only if needed):** target/figma URL (when the flag is absent) · Figma token (Figma path) · auth email · auth password (Step 1.5, when login = yes). These are at most four — ask them **together in a single AskUserQuestion call**, never one at a time.
+
+**Free-text values come through the question widget — never a prose re-prompt.**
+URL, Figma token, email, and password are all captured via `AskUserQuestion`
+(the user types each into the question's free-text / "Other" input). Do **NOT**
+ask for them by writing a sentence in chat and waiting for the user to type the
+value back in a separate message — that breaks the flow. One Round-1 widget,
+then (if anything is still missing) one Round-2 widget, and intake is done.
 
 A run with all values supplied via flags/env asks **zero** questions.
+
+**Scope is a question too — asked after discovery, not at the start.** Which
+areas/pages to QA is confirmed via a multi-select question once the surface is
+known: the Figma path's Step 1a and the live-URL path's Step 1a (see
+`generate-figma.md` / `generate-explore.md`) each enumerate the structure and
+ask the user to pick the scope (default = widest). If the user already named a
+scope in chat, use it to pre-narrow that question's default rather than asking
+blind.
 
 ### 0. Resolve engine + dependency check
 
@@ -106,7 +121,7 @@ Plus: render checks per column/section, search/no-match/filter/sort, pagination,
 
 Otherwise (fresh run), decide the path from the arguments:
 
-- If `--cases <path>` is present → **skip generation entirely.** Load the given file, validate it against the schema in `references/cases-yaml.md` (top-level `cases:` list; every case carries a `case_id`, `name`, `expected_result`, `test_data` with `BASE_URL`, and `steps`). If validation fails, report the problems and stop. The human review gate below is **skipped** — the file was authored by the user, not drafted by the AI. Go straight to Step 3.
+- If `--cases <path>` is present → **skip generation entirely.** Load the given file, validate it against the schema in `references/cases-yaml.md` (top-level `cases:` list; every case carries a `case_id`, `name`, `test_data` with `BASE_URL`, and `steps`). If validation fails, report the problems and stop. The human review gate below is **skipped** — the file was authored by the user, not drafted by the AI. Go straight to Step 3.
 - If `--figma <url>` is present → follow `references/generate-figma.md`. (`--target <url>` is required there for `BASE_URL`; ask for it if missing — Round 2 question.)
 - Otherwise → require `--target <url>` and follow `references/generate-explore.md`. If `--target` is missing, ask for it before proceeding.
 
@@ -166,9 +181,10 @@ by [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules:
 
 - Include **only** cases whose `status=pass`; skip `fail` / `needs_discussion`
   (no trustworthy structured form).
-- Emit `ir_version: 1`, copy `name` / `description` from `cases.yaml`, and for
-  each passing case emit `case_id`, `name`, `expected_result`, the case's
-  `compiled_steps` as `steps`, and `cleanup` copied from the source case.
+- Emit `ir_version: 2`, copy `name` / `description` from `cases.yaml`, and for
+  each passing case emit `case_id`, `name`, the case's `compiled_steps` as
+  `steps`, and `cleanup` copied from the source case. **No `expected_result`** —
+  v2 dropped it (negative scenarios are encoded as a final asserting step).
 - **Masking:** never write a secret value — sensitive steps carry `value_ref`
   only (the `test_data` key), never the literal, same as the `****` rule.
 - **Both engines emit it.** browser-use selectors are AI-resolved and may be
@@ -225,7 +241,24 @@ record, leave `{selector_drift}` empty so its `<!-- IF-selector_drift -->`
 section is omitted, consistent with the other IF-conditionals. `summary.json`
 and `results.csv` are NOT modified for drift.
 
-Then read `references/report-template.html` and render it to `report.html` in the report dir. The template uses **two token styles** — fill **both**:
+Then render `report.html` in the report dir. **Use the shipped deterministic
+renderer — do NOT hand-render and do NOT author a new render script.** Copy
+`references/render.mjs` into the report dir and run it from there:
+
+```
+node render.mjs /abs/path/to/references/report-template.html
+```
+
+It reads the report dir's own `summary.json` + `results.csv` (+ optional
+`selector-drift.json`), fills every token, strips machinery comments, and runs
+the mandatory validation below. **All run-global tokens — especially
+`{{META_ENGINE}}` and `{{META_BASE_URL}}` — are sourced from `summary.json`
+(`engine` / `base_url`), never hardcoded.** This is non-negotiable: a literal
+`META_ENGINE: 'playwright'` is the bug that made browser-use runs mislabel
+themselves as playwright. A browser-use run MUST report `browser-use`; never
+reuse another run's render output or a render script that bakes the engine.
+
+For reference, the template uses **two token styles** that `render.mjs` fills:
 
 - **Run-global tokens `{{UPPER}}`:** `{{META_EXECUTED_AT}}`, `{{META_FINISHED_AT}}`, `{{META_DURATION}}`, `{{META_BASE_URL}}`, `{{META_ENGINE}}`, `{{META_BROWSER}}`, `{{META_COMMIT_HASH}}`, `{{TOTAL}}`, `{{PASSED}}`, `{{FAILED}}`, `{{NEEDS_DISCUSSION}}`. `{{META_DURATION}}` is human-readable, built from `duration_seconds` — `1h 12m 34s` / `12m 34s` / `34s` (omit leading zero units).
 - **Per-case row tokens `{lower}`** (substituted once per `results.csv` row): `{case_name}`, `{status}`, `{STATUS}`, `{tester}`, `{finished_at}`, `{failure_reason}`, `{expected_vs_actual}`, `{discuss_note}`, `{evidence_path}`, `{case_id}`, `{jira_key}`, `{selector_drift}` (sourced from `selector-drift.json`, not a results.csv column; see Step 6).
@@ -255,7 +288,7 @@ Report: reports/{timestamp}/report.html
 - `references/generate-explore.md` — generate `cases.yaml` by exploring a live `--target <url>`, with mandatory review.
 - `references/engine-browser-use.md` — browser-use engine contract: AI-interpreted session execution → `results.csv`.
 - `references/engine-playwright.md` — Playwright engine contract: runtime DOM resolution via a per-run `run-case.mjs` driver → `results.csv` + `compiled_steps`.
-- `references/compile-ir.md` — how a run (either engine) emits `cases.compiled.yaml` (IR v1) for offline execution by `aqa-runner`.
+- `references/compile-ir.md` — how a run (either engine) emits `cases.compiled.yaml` (IR v2) for offline execution by `aqa-runner`.
 - `references/report-template.html` — HTML report template rendered in Step 6.
 
 ## Outputs

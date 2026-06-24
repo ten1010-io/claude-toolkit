@@ -1,4 +1,4 @@
-# Compiling `cases.compiled.yaml` (IR v1)
+# Compiling `cases.compiled.yaml` (IR v2)
 
 This reference describes how an `aqa-inspect` execution turns a successful run
 into a deterministic, LLM-free **IR** file — `cases.compiled.yaml` — that the
@@ -8,8 +8,13 @@ offline (no Claude, no network). **Both engines** (playwright and browser-use)
 emit it.
 
 > **Schema authority:** the IR contract is owned by `aqa-runner`
-> (`schema/ir.md`). This file mirrors **IR v1**; keep them in sync. If they ever
+> (`schema/ir.md`). This file mirrors **IR v2**; keep them in sync. If they ever
 > diverge, `aqa-runner/schema/ir.md` wins.
+>
+> **v1 → v2:** v2 drops the per-case `expected_result` field. Every case is
+> judged purely by whether its steps/asserts pass (negative scenarios assert
+> the error/blocked state as their final step — see `cases-yaml.md`). Do **not**
+> emit `expected_result` into the IR.
 
 ## When it runs
 
@@ -33,20 +38,21 @@ Compilation is just **persisting those decisions** in structured form. Each
 engine returns a `compiled_steps` array per case (see `engine-playwright.md` /
 `engine-browser-use.md`); the orchestrator assembles those into the IR.
 
-## IR v1 schema (mirror of `aqa-runner/schema/ir.md`)
+## IR v2 schema (mirror of `aqa-runner/schema/ir.md`)
 
 ```yaml
-ir_version: 1            # required; the runner refuses any other value
+ir_version: 2            # required; the runner accepts 1 or 2
 name: "Login"            # copied from cases.yaml
 description: "..."       # copied from cases.yaml (optional)
 cases:
   - case_id: login-001   # copied verbatim (stable slug — rerun/Jira join key)
     name: "Log in with valid credentials"
-    expected_result: pass     # copied verbatim from the source case (pass | fail)
     steps: [ ... ]            # the compiled_steps for this case, in order
     cleanup:                 # copied from the source case (optional)
       - type: clear_cookies
 ```
+
+No `expected_result` field — see the v1 → v2 note above.
 
 ### Finite op set
 
@@ -115,13 +121,12 @@ cases in the report dir (previously-passing + newly-passing), keyed by
 ## Compact example
 
 ```yaml
-ir_version: 1
+ir_version: 2
 name: "Login"
 description: "User authentication flow"
 cases:
   - case_id: login-001
     name: "Log in with valid credentials"
-    expected_result: pass
     steps:
       - op: goto
         url: "https://app.example.com/login"

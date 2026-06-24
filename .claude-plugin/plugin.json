@@ -1,6 +1,6 @@
 {
   "name": "claude-toolkit",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "AI-powered QA automation and Git workflow tools for Claude Code.",
   "author": {
     "name": "ten1010-io",

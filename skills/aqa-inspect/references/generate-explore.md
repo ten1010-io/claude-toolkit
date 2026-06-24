@@ -29,6 +29,34 @@ Wait for the page to settle (load / network idle) before inspecting.
 
 **Login-wall fallback:** if login was NOT marked as required but the opened page is a login wall (redirect to a login path, or a password field gating the content), pause, ask the user for credentials (per SKILL.md Step 1.5 resolution order), log in, then continue exploring.
 
+### Step 1a — Scope: confirm WHICH areas to QA before exhaustive coverage
+
+**Do not exhaustively enumerate the whole site before confirming scope.** A live
+app can span dozens of routes; QAing every one when the user cares about a single
+feature wastes a long run and buries the relevant cases. Confirm scope first, then
+go deep — scope narrows WHICH areas are covered, never how thoroughly each
+confirmed area is covered.
+
+Required procedure:
+
+1. **Shallow enumeration first.** From the opened page, discover only the
+   top-level surface: primary nav items, sidebar/menu entries, top-level routes,
+   and the main page sections. Do **not** crawl into detail pages, modals, or
+   sub-tabs yet — that is the exhaustive pass (Step 3), which runs only after
+   scope is confirmed.
+2. **Honor any free-text scope hint from intake.** If the user gave a scope hint
+   at intake (passed from SKILL.md — e.g. "just the signup flow", "only the admin
+   area"), use it to pre-narrow: pre-select the matching areas as the proposed
+   default instead of all.
+3. **Present the discovered areas and confirm scope.** Show the user the
+   shallow-enumerated areas and let them choose which to QA — **multi-select**,
+   with the **default = the widest scope (all discovered areas)**. Use
+   `AskUserQuestion` (with `multiSelect`) where available; otherwise present a
+   numbered list and ask them to pick. When in doubt, propose full coverage and
+   let them prune — never silently narrow on your own.
+4. The confirmed set of areas is the **scope** for the rest of this path. The
+   exhaustive coverage mandate (Step 3) applies only within it.
+
 ## Step 2 — Inspect the DOM / accessibility tree
 
 Enumerate the interactive surface of the page from the **DOM** and the
@@ -50,20 +78,24 @@ when the accessibility name is missing.
 
 ## Step 3 — Derive cases (MAXIMIZE COVERAGE)
 
-> **Coverage is the primary goal. Time is NOT a constraint.** Generate as MANY
-> cases as the surface area justifies — a thorough sheet for a real app is
-> typically **dozens to well over a hundred** cases, not a handful. Never stop
-> at "a few happy paths plus two negatives." Under-generating is the most common
-> failure of this step; err heavily toward MORE cases. Do not silently cap,
-> sample, or "pick the important ones" — enumerate the whole surface.
+> **Coverage is the primary goal. Time is NOT a constraint.** Within the scope
+> confirmed in Step 1a, generate as MANY cases as the surface area justifies — a
+> thorough sheet for a real app is typically **dozens to well over a hundred**
+> cases, not a handful. Never stop at "a few happy paths plus two negatives."
+> Under-generating is the most common failure of this step; err heavily toward
+> MORE cases. Do not silently cap, sample, or "pick the important ones" —
+> enumerate the whole of the confirmed scope. (Scope narrows WHICH areas are
+> covered, not how thoroughly each confirmed area is covered.)
 
-### 3a. Enumerate the WHOLE surface first (breadth)
+### 3a. Enumerate the WHOLE confirmed scope first (breadth)
 
-Do not test only the landing page. Crawl and list **every reachable
-destination** before writing cases:
+Within the areas confirmed in Step 1a, do not test only the landing page. Crawl
+and list **every reachable destination inside the confirmed scope** before
+writing cases:
 
 - **Every route / page** reachable from the nav, sidebar, menus, breadcrumbs,
-  and in-page links (and, for authed apps, every admin/management route).
+  and in-page links within scope (and, for authed apps, every admin/management
+  route in scope).
 - **Every list/table** and its **detail** pages (open a representative row).
 - **Every create / edit form** and modal/dialog/drawer.
 - **Every tab, sub-tab, and view toggle** within each page.
@@ -105,7 +137,8 @@ field-, control-, and state-level cases. At minimum, per destination, cover:
   Create/Read/Update/Delete as **separate cases**, not one.
 - **Negative & boundary cases** — empty required field, invalid format,
   duplicate value, too-long / special-character input, whitespace-only — each
-  its own `expected_result: "fail"` case.
+  its own case whose final step verifies the validation error/blocked state.
+  See `cases-yaml.md` "Negative scenarios" for how to encode error paths.
 - **Auth / session / security** where applicable — valid login, wrong password,
   unknown user, empty fields, session-persists-on-reload, and
   **unauthenticated access to a protected route redirects to login**.
@@ -129,8 +162,7 @@ Each case carries these fields:
 |---|---|
 | `case_id` | Stable slug — see "case_id convention" below. |
 | `name` | Human-readable case title (becomes the Jira summary downstream). |
-| `steps` | Ordered list of `action` entries in natural language (multi-step). |
-| `expected_result` | `"pass"` for happy paths, `"fail"` for negative cases (the validation error appearing is the expected normal behavior). |
+| `steps` | Ordered list of `action` entries in natural language (multi-step). A case is judged purely by whether its steps succeed; negative/error scenarios are encoded by making the FINAL step verify the error/blocked state. |
 | `test_data` | `key: value` map. Always includes `BASE_URL`; other keys derived from the discovered field labels/placeholders. |
 
 `priority` is optional metadata; if emitted it is **informational only** and is
@@ -161,7 +193,6 @@ tags: [auth, signup]
 cases:
   - case_id: signup-001
     name: "Sign up with valid details"
-    expected_result: "pass"
     test_data:
       BASE_URL: "https://app.example.com"
       email: "testuser@example.com"
@@ -183,7 +214,6 @@ cases:
 
   - case_id: signup-002
     name: "Sign up with empty required email"
-    expected_result: "fail"
     test_data:
       BASE_URL: "https://app.example.com"
       password: "TestPassword123!"
@@ -199,7 +229,6 @@ cases:
 
   - case_id: signup-003
     name: "Sign up with invalid email format"
-    expected_result: "fail"
     test_data:
       BASE_URL: "https://app.example.com"
       email: "not-an-email"
@@ -232,7 +261,7 @@ Notes:
   **user's language** (the language the user is conversing in), per the Language
   rule in `SKILL.md`. The English `name`/`action` text in the skeleton above is
   a reference only — translate it. `case_id` slugs stay lowercase ASCII; YAML
-  keys and `expected_result` values (`pass`/`fail`) stay in English.
+  keys stay in English.
 - Mark password / token / secret inputs with `sensitive: true` on the relevant
   step.
 - `BASE_URL` (from `--target <url>`) is mandatory in every `test_data` block.

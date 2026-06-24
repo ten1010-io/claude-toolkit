@@ -159,7 +159,7 @@ The engine never writes `cases.yaml`; the orchestrator is the single writer
 
 Like the Playwright engine, browser-use also returns, for **every step it runs**,
 the structured IR form it executed, in step order, as a `compiled_steps` array.
-The orchestrator assembles these into `reports/{ts}/cases.compiled.yaml` (IR v1)
+The orchestrator assembles these into `reports/{ts}/cases.compiled.yaml` (IR v2)
 for [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules and the
 op/assert mapping: `references/compile-ir.md`.
 
@@ -201,17 +201,19 @@ empty-field rules. This engine MUST populate it exactly as described there.
 
 ### Determining `status`
 
-Determine the per-case outcome from the final page state / screenshots and the
-case's `expected_result` (semantics defined in `cases-yaml.md`):
+Determine the per-case outcome from the final page state / screenshots. A case
+is judged purely by whether its steps succeed (semantics defined in
+`cases-yaml.md`):
 
-- **`expected_result: "pass"`** → every step succeeded and the success state is
-  observed ⇒ `status = pass`; any step failed or the success state is missing ⇒
-  `status = fail`.
-- **`expected_result: "fail"`** → the expected error/validation state appeared
-  ⇒ `status = pass`; no error appeared (the action unexpectedly succeeded) ⇒
-  `status = fail`.
+- **Every step — including the final verification/assert step — succeeded** ⇒
+  `status = pass`.
+- **Any step failed** (could not perform the action, or a verification condition
+  was not met) ⇒ `status = fail`.
 - When pass/fail cannot be confidently determined ⇒ `status = needs_discussion`
   (see the rule below).
+
+Negative scenarios need no special handling — their final asserting step passes
+exactly when the expected error/blocked state appears (see `cases-yaml.md`).
 
 ### Populating each field
 

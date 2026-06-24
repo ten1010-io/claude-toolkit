@@ -202,7 +202,8 @@ one happy path — decompose into field-, control-, and state-level cases:
   enumerated explicitly; key values render.
 - **Error / negative / boundary paths** per designed error state — empty
   required field, invalid format, duplicate, too-long / special characters,
-  mismatch — each its own `expected_result: "fail"` case.
+  mismatch — each its own case whose final step verifies the expected
+  error/blocked state. (See `cases-yaml.md` "Negative scenarios".)
 - **CRUD** wherever the design implies create/edit/delete flows — treat
   Create, Read, Update, and Delete as **separate cases**.
 - **Navigation & cross-cutting** — every nav target, tab, and breadcrumb shown
@@ -221,8 +222,7 @@ Each case carries these fields:
 | `name` | Human-readable case title (becomes the Jira summary downstream). |
 | `priority` | `critical` / `high` / `medium` / `low`. **Informational only** — `aqa-inspect` does **not** filter or select cases by priority. It is metadata for the human reader. |
 | `test_data` | `key: value` map. Always includes `BASE_URL`. Derive other keys from the test-data hints extracted in Step 1.4. |
-| `steps` | Ordered list of `action` entries in natural language (multi-step). |
-| `expected_result` | `"pass"` for happy paths, `"fail"` for error paths (the error appearing is the expected normal behavior). |
+| `steps` | Ordered list of `action` entries in natural language (multi-step). A case passes when all its steps succeed; negative scenarios are expressed by making the final step verify the error/blocked state. |
 
 `BASE_URL` is taken from `--target <url>` and stored in **every** case's
 `test_data`.
@@ -261,7 +261,6 @@ cases:
   - case_id: login-001
     name: "Log in with valid credentials"
     priority: critical          # informational only — not used for filtering
-    expected_result: "pass"
     test_data:
       BASE_URL: "https://app.example.com"
       email: "testuser@example.com"
@@ -279,7 +278,6 @@ cases:
   - case_id: login-002
     name: "Log in with wrong password"
     priority: high              # informational only — not used for filtering
-    expected_result: "fail"
     test_data:
       BASE_URL: "https://app.example.com"
       email: "testuser@example.com"
@@ -300,7 +298,7 @@ Notes:
 - **Language:** write every case `name` and every `steps[].action` in the
   **user's language**, per the Language rule in `SKILL.md`. The English text in
   the skeleton above is a reference only — translate it. `case_id` slugs stay
-  lowercase ASCII; YAML keys and `expected_result` values stay in English.
+  lowercase ASCII; YAML keys stay in English.
 - Mark password / token / secret inputs with `sensitive: true` on the relevant
   step (see the substitution rules in `references/cases-yaml.md`).
 - `BASE_URL` is mandatory in every `test_data` block.

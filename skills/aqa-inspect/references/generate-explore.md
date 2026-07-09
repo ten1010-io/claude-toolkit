@@ -156,6 +156,12 @@ ops, downloads that bill, etc.) on data you did not create:
   ("verify the Delete button is present; DO NOT click it") rather than dropping
   coverage. Note the limitation in the case `name`.
 
+Safety never justifies under-automation: exercising a create form/dialog
+**without submitting** mutates nothing and is fully automatable (navigate to
+the wizard, verify fields/validation/summary-panel reactions). See the
+Automation-first mandate in `SKILL.md` — manual/`needs_discussion` requires a
+named blocker, not "visual check".
+
 Each case carries these fields:
 
 | Field | Meaning |

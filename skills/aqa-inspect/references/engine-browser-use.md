@@ -233,3 +233,10 @@ exactly when the expected error/blocked state appears (see `cases-yaml.md`).
 ## The `needs_discussion` Rule
 
 Assign `needs_discussion` ONLY when pass/fail cannot be confidently determined from screenshots/state; always record a `discuss_note` explaining the ambiguity.
+
+This is a **last resort**, per the Automation-first mandate in `SKILL.md`: before
+marking a case manual, attempt to verify it from the live page (visible text,
+element state, URL, dialog contents). The `discuss_note` must name a specific
+blocker (DB/account state, missing role credentials, real persistent mutation,
+un-inducible data state, external pixel comparison, non-deterministic timing) —
+a generic "visual check needed" is a classification bug.

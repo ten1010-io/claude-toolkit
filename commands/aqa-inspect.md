@@ -30,8 +30,10 @@ Runs the full QA loop in one command: **generate** test cases, **execute** them 
 | `--headed` | Yes | Run with a visible browser window |
 | `--headless` | No | Run in headless mode |
 | `--parallel N` | 2 | Run N cases concurrently |
-| `--rerun-failed` | Off / auto-ask | Re-run only the cases that previously failed. Even without the flag, if the latest report has unresolved cases you'll be asked whether to re-run them |
+| `--rerun-failed` | Off / auto-ask | Re-run only the cases that previously failed. Even without the flag, if the latest report has unresolved cases you'll be asked whether to re-run them. On rerun you pick which `case_id` prefixes to include via checkboxes (all checked by default) |
 | `--resume <reports_dir>` | — | Resume from an existing reports directory |
+
+At intake you're always asked where cases come from (unless a flag already answers it): live exploration, a Figma URL, a pre-defined cases file/document, or a free-text scope describing what to cover.
 
 ## Examples
 

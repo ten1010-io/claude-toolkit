@@ -40,7 +40,29 @@ Follow these steps **exactly**.
 Interrupt the user at most **twice** at the start. Collect every applicable start-of-run question into batched AskUserQuestion calls (max 4 questions per call); each question is skipped individually when its flag/env already supplies the value:
 
 - **Round 1 (always at most one call):** engine (Step 0) · tester (Step 1) · rerun offer (Step 0.5) · "does the target require login?" (Step 1.5).
-- **Round 2 (one consolidated call, only if needed):** target/figma URL (when the flag is absent) · Figma token (Figma path) · auth email · auth password (Step 1.5, when login = yes). These are at most four — ask them **together in a single AskUserQuestion call**, never one at a time.
+- **Round 2 (one consolidated call, only if needed):** **case source** (see below) · target URL (when the flag is absent) · Figma token (Figma path) · auth email · auth password (Step 1.5, when login = yes). Pick at most four for the single AskUserQuestion call (drop the ones already answered by flags/env) — never ask one at a time.
+
+**Case source is a mandatory Round 2 question** (fresh run or rerun, unless
+`--cases`/`--figma` already answers it). It asks where the test cases come
+from, with these options:
+
+- **Live exploration** — explore `--target` and auto-generate (the default).
+- **Figma design** — the user supplies just the Figma URL (free-text/Other
+  input; the token is a separate Round 2 question).
+- **Pre-defined cases** — an existing `cases.yaml` / test-plan document
+  (spreadsheet, wiki, etc.); the user supplies the path or URL.
+- **Desired scope (free text)** — the user types which features/pages/flows
+  they want covered; use it as the scope hint for Step 1a.
+
+**Rerun case selection (checkbox by prefix).** When the run reuses an existing
+`cases.yaml` (rerun / resume / the user picked "re-run existing"), enumerate the
+distinct `case_id` prefixes in that file (e.g. `login`, `node`, `mon`, `ws`) and
+ask a **multi-select** question with one checkbox per prefix, **all checked by
+default** — the user unchecks the groups they want to skip. Run only the checked
+prefixes; rows for unchecked prefixes keep their previous `results.csv` values
+untouched. (With 4+ prefixes, split across two multi-select questions in the
+same call, or list prefixes in the description and let "Other" carry an
+include-list — never ask one prefix at a time.)
 
 **Free-text values come through the question widget — never a prose re-prompt.**
 URL, Figma token, email, and password are all captured via `AskUserQuestion`
@@ -81,8 +103,8 @@ Find the most recent `reports/{timestamp}/` directory (lexically-largest name). 
 
 > "The last run ({timestamp}) has {N} unresolved case(s) ({fail} fail / {needs_discussion} needs discussion). Re-run only those, or start a fresh run?"
 
-- **Re-run** → proceed exactly as if `--rerun-failed` had been passed (Step 2 is skipped, Step 3 reuses that dir).
-- **Fresh** → continue normally.
+- **Re-run** → proceed exactly as if `--rerun-failed` had been passed (Step 2 is skipped, Step 3 reuses that dir). Additionally ask the **prefix checkbox** question in Round 2 (see "Rerun case selection" in the question batching rule): all `case_id` prefixes from the reused `cases.yaml` pre-checked, user unchecks what to skip.
+- **Fresh** → continue normally; Round 2 then asks the **case source** question (Figma URL / pre-defined cases / desired scope / live exploration).
 
 If no previous report dir exists, or its `results.csv` has no unresolved rows, skip this question silently.
 
@@ -116,6 +138,40 @@ Hand the resolved credentials to the generation step (Step 2): the generation re
 - **Every action / interaction type** — each button, link, tab, sort, filter, hover, drag, expand/collapse, copy, upload/download, submit, and keyboard interaction gets its own case.
 
 Plus: render checks per column/section, search/no-match/filter/sort, pagination, full CRUD as separate C/R/U/D cases, boundary + negative inputs, auth/session/security, cross-cutting nav. A thorough sheet is typically dozens to 100+ cases — never stop at a handful of happy paths. On shared/production targets, preserve coverage safely via throwaway resources or presence-only checks for destructive controls. Full rules: `generate-explore.md` Step 3 / `generate-figma.md` Step 2.
+
+**Automation-first mandate — `needs_discussion` is a last resort, never a
+shortcut.** If a case can be reproduced through the browser, AUTOMATE IT. Do
+not park a case as "manual" / "visual check" / "육안 검증" without first
+**attempting to harvest it from the live DOM**: navigate to the actual
+page/tab/dialog, and check whether the expectation is verifiable via DOM text,
+element presence/state, attributes (`type`, `href`, `disabled`,
+`placeholder`), computed styles (`stroke-dasharray`, colors via
+`getComputedStyle`), URL changes, or download events. Things that look
+"visual" but are DOM-verifiable include: chart titles/legends/series names,
+password-mask toggles (input `type` flips), logout redirects, dropdown/dialog
+contents, tab panels, sort/expand/collapse controls, form-field rendering on
+create wizards (navigating to the form mutates nothing), CSV download firing,
+and search highlights. Classify a case as `needs_discussion` ONLY for genuine
+blockers, and the `discuss_note` must name the **specific** blocker — one of:
+
+- **DB/account state** that cannot be prepared (locked/dormant accounts, 60-day
+  expiry, admin-reset state).
+- **Missing credentials** for a required role (permission-matrix cases).
+- **Real persistent mutation** on shared data the run must not touch — but
+  cases that only *exercise a form/dialog without submitting*, and (when the
+  user allows it) **throwaway create→verify→delete of resources this run
+  created**, are automatable, not manual.
+- **Data-state dependence** that cannot be induced (specific utilization bands,
+  required error events, empty/no-data states, hardware-config-dependent
+  series).
+- **External pixel comparison** (Figma design diffing) or true pixel-level
+  color judgment with no DOM/CSS signal.
+- **Non-deterministic timing** that cannot be asserted reliably (auto-refresh
+  intervals, load-dependent spinners).
+
+A generic reason like "visual check needed" without a named blocker is a
+classification bug. When in doubt, harvest the page and try — the human can
+always reclassify in Step 5; silently under-automating wastes the entire run.
 
 **On `--rerun-failed` / `--resume`, SKIP this entire step — including the human-review gate.** Reuse the existing `cases.yaml` from the report dir **as-is**; do NOT regenerate. Regenerating would change `case_id`s and break the rerun match against the existing `results.csv`. Jump straight to Step 3.
 

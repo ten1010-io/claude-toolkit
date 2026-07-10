@@ -249,6 +249,24 @@ by [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules:
 - **`--rerun-failed` / `--resume`:** regenerate the file from the **union** of
   all currently-passing cases in the report dir (previously-passing + newly
   passing), keyed by `case_id`, so the IR reflects every green case.
+  **Merging `results.csv` alone is NOT enough** — if the generated runner
+  script only emits the cases it executed this run, a subset rerun silently
+  destroys every previously-compiled case. The simplest correct implementation
+  recompiles the IR from `cases.yaml` for **every** `case_id` whose current
+  `results.csv` status is `pass` (compilation is a pure function of the case
+  definition — it needs no browser).
+- **Post-write check (MANDATORY, every run):** after writing
+  `cases.compiled.yaml`, count its `case_id` entries and compare with the
+  number of `status=pass` rows in `results.csv`. They MUST be equal. If the IR
+  has fewer cases, previously-passing cases were dropped — rebuild from the
+  union before reporting the run as done, and never leave the truncated file
+  in place.
+- **Finite assert types only:** every emitted `assert.type` MUST come from the
+  table in `references/compile-ir.md`. There is no `attr_equals` — compile an
+  attribute check into a CSS attribute selector plus a `visible` assert
+  (e.g. `input[name=password][type="password"]`, or `[href*="/docs"]` for an
+  href-contains check). An out-of-table type loads fine but crashes
+  `aqa-runner` at execution time with `Unknown assert type`.
 
 Capture run metadata for the report:
 

@@ -86,6 +86,14 @@ Each `assert` step is `{ op: assert, assert: { type, … } }`.
 | `value_equals` | `selector`, `expected` | "field X equals / holds V" |
 | `count` | `selector`, `expected` (int) | "there are N rows / items / results" |
 
+This table is **closed** — an assert type outside it (e.g. `attr_equals`)
+passes the runner's loader but crashes at execution time with
+`Unknown assert type`. Compile an attribute check into a CSS attribute
+selector plus `visible` instead: strict equality as `[attr="value"]`
+(e.g. `input[name=password][type="password"]`), substring semantics for
+`href` as `[href*="value"]`, optionally combined with Playwright's
+`:has-text("...")` when the source selector was text-based.
+
 ### Selector descriptor
 
 Reuse the **same** descriptor the selector cache already resolved (schema in
@@ -117,6 +125,18 @@ writer — same rule as the selector cache. It collects each passing case's
 `--resume`, regenerate the file from the **union** of all currently-passing
 cases in the report dir (previously-passing + newly-passing), keyed by
 `case_id`, so the IR reflects every green case.
+
+**Union means recompile, not append.** A subset rerun that writes only the
+cases it executed this run silently destroys every previously-compiled case —
+merging `results.csv` while overwriting the IR is the classic mistake. Since
+`compileStep` is a pure function of the case definition (no browser needed),
+the simplest correct implementation rebuilds the whole IR from `cases.yaml`
+for every `case_id` whose current `results.csv` status is `pass`.
+
+**Post-write check (MANDATORY):** after writing the file, the number of
+`case_id` entries in `cases.compiled.yaml` MUST equal the number of
+`status=pass` rows in `results.csv`. Fewer means passing cases were dropped —
+rebuild from the union before declaring the run done.
 
 ## Compact example
 

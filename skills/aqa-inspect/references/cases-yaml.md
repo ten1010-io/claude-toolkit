@@ -13,6 +13,15 @@ name: "Feature Name"
 description: "Description"
 tags: [tag1, tag2]
 
+login:                      # optional — only when the target requires auth
+  path: "/login"            # login page path, relative to BASE_URL
+  username_selector: "input[name=username]"
+  password_selector: "input[name=password]"
+  submit_text: "Sign in"    # regex source matched against the submit button name
+  logout_text: "Sign out"   # regex source matched against the logout menu item
+  id_key: auth_id           # test_data key holding the account id
+  password_key: auth_password  # test_data key holding the password
+
 cases:
   - case_id: feature-001
     name: "Case Name"
@@ -35,7 +44,24 @@ cases:
 | `name` | yes | Feature name covered by this plan. |
 | `description` | yes | One-line description of the feature. |
 | `tags` | yes | 2–3 short tags derived from the feature (e.g. `[auth, login]`). |
+| `login` | optional | Target-specific authentication config consumed by the `login` / `logout` ops and the IR compiler (see "File-level `login:` config" below). Generation MUST emit it whenever login credentials are involved — **no login path or form selector may ever be hardcoded in a driver or IR**. |
 | `cases` | yes | List of test cases (see below). |
+
+### File-level `login:` config
+
+Everything target-specific about authentication lives here — the shipped
+playwright driver (`run-case.mjs`) and the IR compiler (`compile.mjs`) read
+this block and contain no app-specific values themselves. All keys are
+optional with generic defaults:
+
+| Key | Default | Meaning |
+|---|---|---|
+| `path` | `/login` | Login page path, relative to `BASE_URL`. Also used to detect redirect-to-login URL asserts (they get an auto-waiting settle assert in the IR). |
+| `username_selector` | `input[name=username]` | CSS selector of the account-id field. |
+| `password_selector` | `input[name=password]` | CSS selector of the password field. Also the settle anchor: the IR asserts it `hidden` after login and `visible` on redirect-to-login asserts. |
+| `submit_text` | `Sign in\|Log in\|Login` | Regex source matched (case-insensitive) against the submit button's accessible name. |
+| `logout_text` | `Sign out\|Log out\|Logout` | Regex source matched against the logout menu item, for the `logout` op. |
+| `id_key` / `password_key` | `auth_id` / `auth_password` | `test_data` keys holding the credentials. `password_key` becomes the IR's `value_ref` — the literal secret never appears in any generated file. |
 
 ### Per case
 
@@ -83,6 +109,32 @@ offline `aqa-runner` verdict identical: both judge purely on step success.)
   provided as input, convert it to `${BASE_URL}` + path form.
 - Keys whose names contain `password`, `secret`, `token`, etc. must have
   `sensitive: true` set on the step that inputs them.
+
+## Machine op fields (deterministic execution)
+
+Each step MAY additionally carry a machine `op` field plus its operands. The
+`action` sentence stays the human-readable truth; `op` is what the shipped
+playwright driver (`references/run-case.mjs`) executes and what
+`references/compile.mjs` compiles into the offline IR. **The playwright engine
+requires `op` on every step** — generation emits both together; a step without
+`op` cannot be executed deterministically (the browser-use engine interprets
+`action` directly and ignores `op`).
+
+| `op` | Operands | Meaning |
+|---|---|---|
+| `login` | — (uses file-level `login:` + `test_data` creds) | Authenticate. The driver logs in once per account and reuses the session; the IR expands to goto → fill id → fill password (`value_ref`) → click submit → assert password field `hidden` (settles the redirect). |
+| `logout` | — | Open the account menu and click the item matching `login.logout_text`. Live-only (no IR form). |
+| `goto` | `value` (URL, `${key}` substituted) | Navigate and wait for load + network idle. |
+| `fill` | `selector`, `value`, `sensitive?` | Fill a field. Sensitive values are masked `****` and become `value_ref` in the IR. |
+| `click` | `selector` | Click the described element. |
+| `click_text` | `value` (exact visible text) | Click by exact text match. |
+| `download` | `selector` or `value` (button text) | Click and require a download event to fire. Compiles to the click only. |
+| `assert_text` | `expect` | Page body contains the text. Compiles to `text_contains` on `body` (strict-safe — never a bare text selector). |
+| `assert_not_text` | `expect` | Page body does not contain the text. |
+| `assert_url` | `expect` (substring) | Current URL contains the substring. When `expect` targets `login.path`, the IR prepends a `visible` assert on the login form to settle the redirect. |
+| `assert_visible` | `selector` | Element is visible. |
+| `assert_attr` | `selector`, `attr`, `expect` | Attribute equals (substring for `href`). Compiles to a CSS attribute selector + `visible` — IR v2 has no `attr_equals`. |
+| `manual` | `note` (specific blocker) | Not automatable — recorded as `needs_discussion` with `note` as the `discuss_note`. Subject to the automation-first mandate in `SKILL.md`: the note must name a concrete blocker. |
 
 ## Selector Cache (machine-managed)
 

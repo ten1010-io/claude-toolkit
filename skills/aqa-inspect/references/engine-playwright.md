@@ -8,14 +8,13 @@ produced by `generate-figma.md` / `generate-explore.md`) and emit the **same**
 `results.csv` schema (see `results-csv.md`). The only difference is the runtime
 mechanism.
 
-The defining property of this engine: each case carries natural-language
-`steps`, and each step **may optionally** carry a cached `selector` descriptor
-(schema in `cases-yaml.md`). This engine tries the cached descriptor first and
-falls back to resolving the step to a concrete Playwright locator **at runtime**
-by reading the live page's accessibility snapshot and DOM whenever no cached
-descriptor is present, the cached locator misses, or its anchor no longer
-matches. Runtime DOM resolution remains the reliable fallback that keeps a case
-runnable even when the cache is empty or stale.
+The defining property of this engine: execution is **deterministic**. Each
+step carries a machine `op` field (see "Machine op fields" in `cases-yaml.md`)
+that the shipped driver interprets directly — no AI in the execution loop.
+Generation (`generate-figma.md` / `generate-explore.md`) emits the `op`
+annotations alongside the human-readable `action` sentences; anything
+target-specific about authentication (login path, form selectors, button text)
+lives in the plan's file-level `login:` block, never in the driver.
 
 ## Dependency Check
 
@@ -38,185 +37,77 @@ Install it with:
 Please try again after installation.
 ```
 
-## Execution Model
+## Concrete Approach: the shipped driver (MANDATORY)
 
-Drive a Chromium page directly. For each natural-language `step.action`:
+**Use the shipped deterministic driver — do NOT author a new driver per run,
+and do NOT adapt the old stdin/stdout skeleton from memory.** Regenerating
+driver logic per run is exactly how real IR bugs shipped: strict-unsafe text
+selectors (a bare `getByText("CPU")` matches once per table row and fails
+`aqa-runner`'s strict `expect()`), unsettled login redirects, and
+`attr_equals` asserts the runner cannot execute. The shipped driver encodes
+those lessons once.
 
-1. **Cached descriptor present** — map `step.selector` to a locator:
-   - `strategy: role` → `page.getByRole(role, { name })`
-   - `strategy: label` → `page.getByLabel(label)`
-   - `strategy: text` → `page.getByText(text)`
-   - `strategy: css` → `page.locator(css)`
-   Apply `${key}` substitution to descriptor values first. If the locator
-   resolves to exactly one element AND (`selector_anchor` is absent OR the
-   element's visible text contains the substituted anchor) ⇒ use it.
-2. **No descriptor, locator misses, or anchor mismatch** — read the page
-   (`page.accessibility.snapshot()` / DOM) and resolve from `step.action` at
-   runtime, preferring `getByRole` > `getByLabel` > `getByText` > CSS. Record
-   the resolved descriptor for write-back (see "Selector write-back").
-3. **Act** — `fill` / `click` / `goto` against the resolved locator; apply
-   `${key}` substitution; mask any `sensitive: true` step as `****`.
-4. **Assert** — verify the expected post-condition. The cache never bypasses
-   this assertion; a wrong-element match still fails here.
+Copy these three files from `references/` into the report dir and run from
+there (they must sit together — `run-case.mjs` and `recompile-ir.mjs` both
+import `compile.mjs`):
 
-When no cached descriptor is present (or it no longer matches), the locator is
-derived from the live DOM at the moment the step runs — the cache is a fast path
-over runtime resolution, never a replacement for the step assertion.
-
-## Concrete Approach: per-run `run-case.mjs` driver
-
-The skill writes a small per-run Node driver, `run-case.mjs`, that executes a
-single case. It reads one case as JSON on **stdin** and returns a JSON result on
-**stdout**, capturing screenshots into `artifacts/{case_id}/`. The orchestrator
-(the skill) pipes each case in and parses each result out, then maps the result
-into `results.csv`.
-
-Illustrative skeleton (not exhaustive — error handling, per-step locator
-resolution, and assertion logic are elided):
-
-```javascript
-// run-case.mjs — reads one case JSON on stdin, emits one result JSON on stdout
-import { chromium } from 'playwright';
-import { mkdirSync } from 'node:fs';
-
-const input = JSON.parse(await readStdin());           // { case_id, name, test_data, steps, headed, screenshot }
-const { case_id } = input;
-const artifactsDir = `artifacts/${case_id}`;
-mkdirSync(artifactsDir, { recursive: true });
-
-const browser = await chromium.launch({ headless: !input.headed });
-const context = await browser.newContext();            // isolated per case
-const page = await context.newPage();
-
-const result = { case_id, status: 'pass', finished_at: null,
-                 failure_reason: '', expected_vs_actual: '',
-                 evidence_path: '', discuss_note: '',
-                 resolved_selectors: [],   // descriptors resolved at runtime, for write-back
-                 compiled_steps: [] };      // structured IR steps (passing cases) → cases.compiled.yaml
-
-// Highlight the element under test with a red box before capturing evidence,
-// so the report reader instantly sees WHERE to look. Remove the box afterward.
-async function captureEvidence(page, locator, path) {
-  let handle = null;
-  if (locator) {
-    handle = await locator.elementHandle().catch(() => null);
-    if (handle) await handle.evaluate(el => {
-      el.__aqaPrev = el.style.outline;
-      el.style.outline = '3px solid #ef4444';
-      el.style.outlineOffset = '2px';
-      el.scrollIntoView({ block: 'center' });
-    });
-  }
-  await page.screenshot({ path });
-  if (handle) await handle.evaluate(el => { el.style.outline = el.__aqaPrev ?? ''; });
-}
-
-let lastLocator = null;
-try {
-  for (const [i, step] of input.steps.entries()) {
-    const tree = await page.accessibility.snapshot();  // runtime DOM/a11y read
-    const locator = resolveLocator(page, step, tree);  // try step.selector cache first, else resolve from step.action
-    // on a runtime resolution (cache miss / anchor mismatch / first fill),
-    // push the resolved descriptor onto result.resolved_selectors (step = i, changed/old per drift)
-    lastLocator = locator;
-    await act(page, locator, step, input.test_data);   // fill/click/goto, honor sensitive
-    await assertStep(page, step);                      // verify post-condition
-    if (input.screenshot) {                            // full capture mode only
-      const shot = `${artifactsDir}/step-${i + 1}.png`;
-      await captureEvidence(page, locator, shot);      // red box on the verified element
-      result.evidence_path = shot;
-    }
-  }
-  // status is pass when every step — including the final verification/assert
-  // step — passed; if any step failed (or the outcome is ambiguous), set
-  // fail/needs_discussion and capture failure evidence as below
-} catch (err) {
-  result.status = 'fail';
-  result.failure_reason = String(err.message ?? err);
-  // MULTI-LINE format (report renders pre-wrap): "기대: …\n실제: …"
-  result.expected_vs_actual = describeExpectedVsActual(input, page);
-  // Failure-moment evidence — ALWAYS captured, even without --screenshot
-  const shot = `${artifactsDir}/failure.png`;
-  await captureEvidence(page, lastLocator, shot).catch(() => {});
-  result.evidence_path = shot;
-} finally {
-  result.finished_at = new Date().toISOString();
-  await context.close();
-  await browser.close();
-}
-
-process.stdout.write(JSON.stringify(result));
+```bash
+cp references/run-case.mjs references/compile.mjs references/recompile-ir.mjs reports/{ts}/
+cd reports/{ts}/
+npm ls playwright yaml || npm i playwright yaml   # driver deps, resolvable from the report dir
+node run-case.mjs --cases ../../cases.yaml --tester {tester} --parallel {N} \
+  [--headless] [--screenshot] [--only id1,id2]
 ```
 
-## Selector write-back (result JSON)
+What the driver does in one invocation:
 
-`run-case.mjs` returns the resolved descriptor for each step that it resolved at
-runtime (cache miss / anchor mismatch / first fill), so the orchestrator can
-persist them into `cases.yaml`. Add a `resolved_selectors` array to the result
-JSON:
+- Executes every case (or only `--only` ids) through a worker pool of size
+  `--parallel`, one isolated browser context per case.
+- Logs in **once per account** (shared `storageState`), not once per case;
+  cases that drive the login page itself (no `login` op) get a clean context.
+- Interprets the machine `op` fields per `cases-yaml.md` ("Machine op fields");
+  all login specifics come from the plan's `login:` block.
+- Writes `results.csv` (RFC 4180, exactly per `results-csv.md`), failure-moment
+  screenshots into `artifacts/{case_id}/`, `summary.json`, and
+  `cases.compiled.yaml`.
+- On a subset run (`--only`), merges results into the existing `results.csv`
+  in place and rebuilds the IR from the **union** of all currently-passing
+  cases (`compile-ir.md` union rule) — previously-passing cases are never
+  dropped.
 
-```json
-"resolved_selectors": [
-  { "step": 3,
-    "selector": { "strategy": "role", "role": "button", "name": "Sign in" },
-    "anchor": "Sign in",
-    "changed": true,
-    "old": { "strategy": "role", "role": "button", "name": "Log in" } }
-]
-```
+**Orchestrator responsibilities that remain with the skill (not the driver):**
+creating the report dir, passing `--tester`, the `needs_discussion`
+reclassification stage, re-running `recompile-ir.mjs` after any manual
+`results.csv` edit (see below), and rendering `report.html` via `render.mjs`.
 
-- `step` — 0-based index into the case's `steps`.
-- `selector` — the descriptor the engine resolved at runtime.
-- `anchor` — the visible text captured as `selector_anchor` (may be empty).
-- `changed` — `true` only when an **existing** descriptor was overwritten
-  (a stale cache re-resolved differently → drift). First-time fill of an empty
-  `selector` is `changed: false`, `old: null`.
-- `old` — the previous descriptor when `changed: true`, else `null`.
-- **`sensitive` steps:** never capture a secret value into `selector` or
-  `anchor` — record only field identifiers (e.g. `{strategy: role, role:
-  textbox, name: Password}`), never the typed value.
+## Offline IR — compiled by `compile.mjs`, rebuilt by `recompile-ir.mjs`
 
-The engine MUST NOT write `cases.yaml` itself; it only returns this array. The
-orchestrator is the single writer (see `SKILL.md`).
+`compile.mjs` is the **single source of truth** for the op → IR v2 mapping
+(full IR rules in `compile-ir.md`). Because compilation is a pure function of
+the case definition, the IR is always rebuilt from `cases.yaml` for every
+`case_id` whose current `results.csv` status is `pass` — never appended to.
 
-## Compiled-step capture (result JSON) — for the offline IR
+Encoded offline-replay guarantees (do not regress these when editing
+`compile.mjs`):
 
-In addition to `resolved_selectors`, the driver records, for **every step it
-runs**, the structured IR form it actually executed, and returns them in step
-order as a `compiled_steps` array. This is the raw material the orchestrator
-assembles into `reports/{ts}/cases.compiled.yaml` (IR v2) for
-[`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full IR rules and the
-op/assert mapping live in `references/compile-ir.md`.
+- **Strict-safe text asserts.** `assert_text` compiles to `text_contains` on
+  the unique `body` element. Never a bare text selector — `aqa-runner`'s
+  `expect()` is strict and fails any locator matching 2+ elements.
+- **Settled login redirects.** The `login` expansion ends with a `hidden`
+  assert on the password field, so the offline replay waits out the post-login
+  redirect instead of racing the session cookie. An `assert_url` targeting the
+  login path is preceded by an auto-waiting `visible` assert on the login form
+  (the runner's `url_matches` checks `page.url()` once, with no retry).
+- **No `attr_equals`.** Attribute checks compile to a CSS attribute selector +
+  `visible` (strict equality `[attr="v"]`; substring `[href*="v"]` for href).
+- **Masking invariant.** A sensitive fill emits `value_ref` (the `test_data`
+  key) — the IR must never contain a secret value.
 
-Each entry is a ready-to-serialize IR step:
-
-- the resolved `op` — whichever of `goto` / `fill` / `click` / `select` /
-  `check` / `hover` / `press` it performed, or `assert` for a verification step;
-- the resolved `selector` descriptor (the **same** one captured for the selector
-  cache) — omitted for `goto`, a page-level `press`, and `url_matches`;
-- `value` for a non-sensitive fill/select (the concrete value used), OR
-  `value_ref: "<test_data key>"` + `sensitive: true` for a sensitive step;
-- for a verification step, the `assert: { type, … }` object per
-  `compile-ir.md`'s assert-type table.
-
-```json
-"compiled_steps": [
-  { "op": "goto", "url": "https://app.example.com/login" },
-  { "op": "fill", "selector": {"strategy":"label","label":"Email"}, "value": "testuser@example.com" },
-  { "op": "fill", "selector": {"strategy":"label","label":"Password"}, "value_ref": "password", "sensitive": true },
-  { "op": "click", "selector": {"strategy":"role","role":"button","name":"Sign in"} },
-  { "op": "assert", "assert": {"type":"visible","selector":{"strategy":"text","text":"Dashboard"}} }
-]
-```
-
-- Populate `compiled_steps` only when the case **passes**. On failure the driver
-  may return a partial array; the orchestrator discards it (only passing cases
-  compile).
-- **Masking invariant:** `compiled_steps` MUST never contain a secret value — a
-  sensitive step carries `value_ref` only, never the typed value, consistent
-  with the `sensitive: true` / `****` rule used everywhere else.
-- This array, like `resolved_selectors`, is returned by the worker; the
-  orchestrator is the single writer of `cases.compiled.yaml`.
+After the `needs_discussion` reclassification stage (or any manual edit to
+`results.csv`), rerun `node recompile-ir.mjs --cases ../../cases.yaml` in the
+report dir so the IR matches the final pass set. It exits non-zero when the
+compiled case count does not equal the `status=pass` row count — the
+mandatory post-write check from `compile-ir.md`.
 
 **Screenshot policy.** Default runs capture **nothing per step** — passing
 cases pay zero screenshot overhead. Evidence is captured only at the **failure
@@ -249,6 +140,17 @@ quoting (RFC-4180) already handles embedded newlines.
 line. When a failure has multiple checks or sub-findings, put each on its own
 `\n`-separated line instead of a comma-joined parenthetical blob.
 
+**Failure triage & enrichment (orchestrator, after the run).** The driver's
+failure messages are mechanical (timeouts, mismatches) and written in English.
+Before reporting, the orchestrator MUST review each failed case's evidence
+screenshot and rewrite `failure_reason` / `expected_vs_actual` in the user's
+language to name the **actual observed defect** — e.g. "the section header
+renders in Korean ('기본 설정') instead of the expected English 'Basic
+Settings'" beats "waitForFunction: Timeout 20000ms exceeded". A raw timeout is
+a symptom, not a finding. Re-run suspected flakes (`--only <case_id>`) before
+letting a transient failure stand, and update the row in place when the rerun
+passes.
+
 ## Result Determination → `results.csv`
 
 `results.csv` is the integration contract defined in `results-csv.md`. That file
@@ -271,14 +173,14 @@ Determine the per-case outcome purely from whether the case's steps succeeded:
 Negative scenarios need no special handling — their final asserting step passes
 exactly when the expected error/blocked state appears (see `cases-yaml.md`).
 
-### Mapping the `run-case.mjs` JSON result → CSV fields
+### How the driver fills the CSV fields
 
 | Column | How this engine sets it |
 |---|---|
 | `case_id` | Copied from the executing case in `cases.yaml`. |
 | `name` | Copied from the case `name`. |
 | `status` | `pass` / `fail` / `needs_discussion` as determined above. |
-| `tester` | **From the run, not the engine.** The engine leaves this to be filled by the run-start tester value; it never invents it. |
+| `tester` | **From the run, not the engine.** Passed via `--tester` (the run-start tester value); the driver never invents it. |
 | `finished_at` | ISO-8601 timestamp when the case completed (`result.finished_at`). Leave empty if the case crashed/aborted before completing. |
 | `failure_reason` | Free-text reason, set **only when `status = fail`**. Empty otherwise. |
 | `expected_vs_actual` | Expected vs observed, set when `status = fail` **or** `needs_discussion`. Empty when `pass`. |
@@ -306,7 +208,6 @@ bug.
 - **`--parallel N`** — run up to `N` cases concurrently. Each concurrent case
   gets its **own browser context** (`browser.newContext()`) so cookies, storage,
   and tabs stay isolated between cases — equivalent to the per-case
-  `--session case_{case_id}` isolation in the browser-use engine. Run the cases
-  through a worker pool of size `N`: launch up to `N` `run-case.mjs` processes,
-  and as each one finishes, start the next pending case until all are done.
+  `--session case_{case_id}` isolation in the browser-use engine. The driver
+  runs an in-process worker pool of size `N` over one shared Chromium instance;
   `--parallel 1` runs cases sequentially.

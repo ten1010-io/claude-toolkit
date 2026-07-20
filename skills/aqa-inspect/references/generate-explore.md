@@ -156,6 +156,13 @@ ops, downloads that bill, etc.) on data you did not create:
   ("verify the Delete button is present; DO NOT click it") rather than dropping
   coverage. Note the limitation in the case `name`.
 
+**Interpreting a "read-only" scope:** when the user scopes a run as read-only
+(or "don't touch the data"), that means **pre-existing data is immutable** —
+it does NOT forbid creating. Resources the run itself creates may be modified
+and deleted freely (that is exactly the throwaway pattern above). Only an
+explicit "no writes at all" forbids throwaway resources — never downgrade
+create/E2E scenarios to `manual` by over-reading "read-only".
+
 Safety never justifies under-automation: exercising a create form/dialog
 **without submitting** mutates nothing and is fully automatable (navigate to
 the wizard, verify fields/validation/summary-panel reactions). See the

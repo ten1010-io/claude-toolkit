@@ -7,12 +7,25 @@ By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered 
 ## Installation
 
 ```bash
-# Step 1: Add to marketplace
+# Step 1: Add the marketplace (once)
 /plugin marketplace add ten1010-io/ten-toolkit
 
-# Step 2: Install
-/plugin install ten-toolkit@ten1010-io
+# Step 2: Install the plugins you need
+/plugin install ten-toolkit@ten1010-io    # QA automation + Git workflow commands
+/plugin install java-team@ten1010-io      # Java team shared skills
 ```
+
+The `ten1010-io` marketplace carries **two independently versioned plugins**. Installing one does not install the other — pick what you need.
+
+Run `/plugin` to confirm what is installed, then invoke a command by name:
+
+```
+/aqa-inspect --target https://app.example.com   # ten-toolkit
+/create-pr                                       # ten-toolkit
+/java-team:meeting-prep                          # java-team
+```
+
+Third-party marketplaces don't auto-update by default. Turn it on once: `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update**. Otherwise pull new versions yourself with `/plugin marketplace update ten1010-io`.
 
 ## Commands
 
@@ -162,6 +175,84 @@ Dry-run merge check — fetches the latest target branch and tests if the curren
 
 ---
 
+## java-team plugin
+
+A separate plugin in the same marketplace with shared skills for Ten's Java team (Dev Team 3). It is versioned independently of `ten-toolkit`.
+
+```bash
+/plugin marketplace add ten1010-io/ten-toolkit   # skip if already added
+/plugin install java-team@ten1010-io
+```
+
+**Turn on auto-update (once):** third-party marketplaces don't auto-update by default. Run `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update**. New versions are downloaded after a session starts and load from the next session. Without it, run `/plugin marketplace update ten1010-io`.
+
+### /java-team:meeting-prep
+
+Prepares your own section for the Java team meeting. Picks the meeting from when you run it, then collects Jira tickets, Confluence pages you edited, GitHub commits/PRs/issues and your replies in the daily Slack work-share thread since the last meeting, lets you pick what to share, formats it for the meeting type, and — only after your review — writes it to your `### <name>` section of the Confluence meeting page.
+
+| | Monday — quick share | Wednesday — weekly review |
+|---|---|---|
+| Run on | Monday | Tuesday afternoon – Wednesday |
+| Items | 5 numbered top-level items, no sub-items | Up to 5 numbered items, sub-items for focus items |
+| Range | Since the last meeting | Since the last Wednesday meeting, plus your Monday section (never dropped) |
+| You decide | The big items | Which items to focus on, together with the skill |
+| Visuals | — | A table or diagram when it helps; anything too large for one block becomes an Artifact you link |
+
+**Usage:**
+
+```
+/java-team:meeting-prep
+```
+
+Or just say what you want — "prepare my meeting notes", "스크럼 준비해줘". The skill decides which meeting from the current day and time, and asks you if it can't tell.
+
+**Example — first run:**
+
+```
+> /java-team:meeting-prep
+
+Monday 10:04 — preparing the Monday quick share.
+First run, so two questions: a link to a recent meeting page, and your Slack
+work-share channel (skip it if you don't use one).
+
+> https://your-site.atlassian.net/wiki/spaces/XX/pages/123456/2026+10+23+43
+> #team-work-share
+
+Saved to meeting-prep.json. I won't ask again.
+
+Collected since the last meeting (10/23):
+
+Jira
+ 1. ABC-3477 Alert threshold editing — Done
+ 2. ABC-3561 Backend wiki — To Do
+GitHub PR
+ 3. backend #742 rename the urgent level — merged
+ 4. web #1787 fix Alert spacing and badge colors — merged
+Slack work-share replies
+ 5. 10/24 5.2.0 QA
+
+[select]  Pick what to share  →  you choose 1+3+4 and 5
+
+Draft for your review:
+
+### <your name>
+1. Admins can change alert thresholds from the screen ([Done](https://your-site.atlassian.net/browse/ABC-3477))
+2. Full-feature check before shipping 5.2.0 (in progress)
+
+Look right? I'll replace only your `### <your name>` section on the
+meeting page — nothing else on it is touched.
+```
+
+Ticket keys never appear as text in the page body. Each item carries a status — **Done / in progress / planned** — and that status word links to the ticket.
+
+**Prerequisites:** Atlassian (Jira/Confluence) connector, [GitHub CLI](https://cli.github.com/); Slack connector optional.
+
+**First run:** asks once for a link to a recent meeting page and the Slack work-share channel, then saves them to `meeting-prep.json` in the plugin data directory (`~/.claude/plugins/data/…`, kept across updates). Say "reset meeting settings" to change them.
+
+**Releasing a change:** bump `version` in `plugins/java-team/.claude-plugin/plugin.json` (set it only there, not in `marketplace.json`). Users don't receive commits until the version string changes.
+
+---
+
 ## Structure
 
 ```
@@ -174,17 +265,24 @@ ten-toolkit/
 │   ├── aqa-jira.md
 │   ├── create-pr.md
 │   └── merge-check.md
-└── skills/
-    ├── aqa-inspect/
-    │   ├── SKILL.md
-    │   └── references/
-    ├── aqa-jira/
-    │   ├── SKILL.md
-    │   └── references/
-    ├── create-pr/
-    │   └── SKILL.md
-    └── merge-check/
-        └── SKILL.md
+├── skills/
+│   ├── aqa-inspect/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   ├── aqa-jira/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   ├── create-pr/
+│   │   └── SKILL.md
+│   └── merge-check/
+│       └── SKILL.md
+└── plugins/
+    └── java-team/
+        ├── .claude-plugin/
+        │   └── plugin.json    # java-team plugin metadata (version)
+        └── skills/
+            └── meeting-prep/
+                └── SKILL.md
 ```
 
 ## License

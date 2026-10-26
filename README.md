@@ -32,7 +32,40 @@ Run `/plugin` to confirm what is installed, then invoke a command by name:
 /java-team:meeting-prep                          # java-team
 ```
 
-Third-party marketplaces don't auto-update by default. Turn it on once: `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update**. Otherwise pull new versions yourself with `/plugin marketplace update ten1010-io`.
+## Staying up to date
+
+Third-party marketplaces **do not auto-update by default.**
+
+### Turn auto-update on (once)
+
+There is no CLI flag for this toggle — it lives in the interactive menu, so run it inside a Claude Code session:
+
+```
+/plugin  →  Marketplaces  →  ten1010-io  →  Enable auto-update
+```
+
+With it on, a new version is downloaded after a session starts and loads from the next session.
+
+### Or update by hand
+
+From your shell:
+
+```bash
+claude plugin marketplace update ten1010-io   # refresh the catalog
+claude plugin update java-team@ten1010-io     # pull the new version (restart to apply)
+claude plugin list                            # confirm the installed version
+```
+
+The same thing inside a session:
+
+```
+/plugin marketplace update ten1010-io
+/plugin install java-team@ten1010-io
+```
+
+### The `version` string gates everything
+
+The install cache is keyed by version — `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. A commit that changes a skill **without bumping `version` in `plugin.json` never reaches anyone**, auto-update on or off. Bump the version for every change you want shipped, however small.
 
 ## Commands
 
@@ -191,7 +224,7 @@ A separate plugin in the same marketplace with shared skills for Ten's Java team
 /plugin install java-team@ten1010-io
 ```
 
-**Turn on auto-update (once):** third-party marketplaces don't auto-update by default. Run `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update**. New versions are downloaded after a session starts and load from the next session. Without it, run `/plugin marketplace update ten1010-io`.
+**Keeping it current:** see [Staying up to date](#staying-up-to-date). Auto-update is off by default for third-party marketplaces, and a change only ships when `version` is bumped.
 
 ### /java-team:meeting-prep
 

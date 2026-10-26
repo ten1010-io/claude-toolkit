@@ -32,7 +32,40 @@
 /java-team:meeting-prep                          # java-team
 ```
 
-서드파티 마켓플레이스는 기본으로 자동 업데이트가 꺼져 있다. `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update** 를 한 번 켜 두거나, `/plugin marketplace update ten1010-io` 로 직접 받는다.
+## 최신 상태 유지
+
+서드파티 마켓플레이스는 **기본으로 자동 업데이트가 꺼져 있다.**
+
+### 자동 업데이트 켜기 (한 번만)
+
+**이 토글에는 CLI 명령이 없다.** 대화형 메뉴에만 있으므로 Claude Code 세션 안에서 실행한다.
+
+```
+/plugin  →  Marketplaces  →  ten1010-io  →  Enable auto-update
+```
+
+켜 두면 새 버전이 세션 시작 뒤 내려받아지고 다음 세션부터 적용된다.
+
+### 직접 받기
+
+셸에서:
+
+```bash
+claude plugin marketplace update ten1010-io   # 마켓 목록 갱신
+claude plugin update java-team@ten1010-io     # 새 버전 받기 (적용은 재시작 후)
+claude plugin list                            # 설치된 버전 확인
+```
+
+세션 안에서 같은 일을 하려면:
+
+```
+/plugin marketplace update ten1010-io
+/plugin install java-team@ten1010-io
+```
+
+### 결국 `version` 문자열이 관문이다
+
+설치 캐시가 버전으로 갈린다 — `~/.claude/plugins/cache/<마켓>/<플러그인>/<버전>/`. 그래서 **`plugin.json` 의 `version` 을 올리지 않고 스킬만 고쳐 머지하면 자동 업데이트를 켜 뒀든 아니든 아무에게도 가지 않는다.** 내보내고 싶은 변경은 아무리 작아도 버전을 올린다.
 
 ## 명령어
 
@@ -161,7 +194,7 @@
 /plugin install java-team@ten1010-io
 ```
 
-**자동 업데이트 켜기 (한 번만):** 서드파티 마켓플레이스는 기본으로 자동 업데이트가 꺼져 있다. `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update** 를 선택한다. 새 버전은 세션이 시작된 뒤 내려받아지고 다음 세션부터 적용된다. 켜지 않았다면 `/plugin marketplace update ten1010-io` 로 직접 받는다.
+**최신 상태 유지:** [최신 상태 유지](#최신-상태-유지) 참고. 서드파티 마켓은 자동 업데이트가 기본으로 꺼져 있고, `version` 을 올려야만 변경이 나간다.
 
 ### /java-team:meeting-prep
 

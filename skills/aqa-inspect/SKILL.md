@@ -157,10 +157,19 @@ blockers, and the `discuss_note` must name the **specific** blocker — one of:
 - **DB/account state** that cannot be prepared (locked/dormant accounts, 60-day
   expiry, admin-reset state).
 - **Missing credentials** for a required role (permission-matrix cases).
-- **Real persistent mutation** on shared data the run must not touch — but
-  cases that only *exercise a form/dialog without submitting*, and (when the
-  user allows it) **throwaway create→verify→delete of resources this run
-  created**, are automatable, not manual.
+- **Real persistent mutation** on **pre-existing** shared data the run must
+  not touch — but cases that only *exercise a form/dialog without submitting*,
+  and **throwaway create→verify→delete of resources this run created**, are
+  automatable, not manual.
+
+  **"Read-only" means existing data is immutable — NOT that the run cannot
+  create.** When the user scopes a run as read-only (or "don't touch the
+  data"), that constrains modifying/deleting resources that existed before the
+  run. Resources the run itself creates are the run's own: creating a
+  throwaway resource, verifying it, and deleting it violates nothing. Do NOT
+  park create/E2E scenario cases as `manual` by over-reading a read-only
+  scope; only an explicit "no writes at all" from the user forbids throwaway
+  resources.
 - **Data-state dependence** that cannot be induced (specific utilization bands,
   required error events, empty/no-data states, hardware-config-dependent
   series).
@@ -210,6 +219,15 @@ In both reuse modes: read the existing `cases.yaml` and `results.csv` from that 
 
 Delegate execution to the engine reference (`references/engine-browser-use.md` or `references/engine-playwright.md`). Both honor `--headed`/`--headless`, `--parallel N`, and `--screenshot`, and isolate each case (browser-use session per `case_id`; Playwright context per case).
 
+**Playwright engine: use the shipped driver — never write one.** Copy
+`references/run-case.mjs`, `references/compile.mjs`, and
+`references/recompile-ir.mjs` into the report dir and run `run-case.mjs` there
+(usage in `engine-playwright.md`). Hand-writing a per-run driver is the same
+class of bug as hand-rendering the report: past hand-written drivers shipped
+strict-unsafe IR selectors and unsettled login redirects that failed every
+offline replay. Target-specific login values belong in the plan's file-level
+`login:` block (`cases-yaml.md`), never in driver code.
+
 **Failure-moment evidence (both engines, regardless of `--screenshot`):** when a case fails or ends `needs_discussion`, capture a screenshot of the page state at that moment into `artifacts/{case_id}/` and set it as `evidence_path`. Passing cases get screenshots only in `--screenshot` full-capture mode — so default runs stay fast.
 
 Write/update `results.csv` exactly per `references/results-csv.md` (column order, RFC 4180 quoting, empty-field rules). The `tester` column is filled from Step 1, not invented by the engine.
@@ -228,11 +246,15 @@ parallel workers — merges these into `cases.yaml` as each case completes:
 - Because the single-threaded orchestrator is the only writer, `--parallel N`
   causes no `cases.yaml` write race.
 
-**IR compile output — `cases.compiled.yaml` (both engines).** Each engine
-returns a per-case `compiled_steps` array (see `engine-playwright.md` /
-`engine-browser-use.md`). The orchestrator — the single writer — assembles these
-into `reports/{ts}/cases.compiled.yaml`, the deterministic offline IR consumed
-by [`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules:
+**IR compile output — `cases.compiled.yaml` (both engines).** The playwright
+path is fully mechanical: the shipped driver writes the IR itself via
+`compile.mjs`, and `recompile-ir.mjs` rebuilds it after any manual
+`results.csv` edit (e.g. Step 5 reclassification) — see
+`engine-playwright.md`. The browser-use engine returns a per-case
+`compiled_steps` array that the orchestrator — the single writer — assembles
+into `reports/{ts}/cases.compiled.yaml` (see `engine-browser-use.md`). Either
+way the result is the deterministic offline IR consumed by
+[`aqa-runner`](https://github.com/ten1010-io/aqa-runner). Full rules:
 `references/compile-ir.md`. In short:
 
 - Include **only** cases whose `status=pass`; skip `fail` / `needs_discussion`
@@ -361,7 +383,10 @@ Report: reports/{timestamp}/report.html
 - `references/generate-figma.md` — generate `cases.yaml` from a `--figma <url>` design, with mandatory review.
 - `references/generate-explore.md` — generate `cases.yaml` by exploring a live `--target <url>`, with mandatory review.
 - `references/engine-browser-use.md` — browser-use engine contract: AI-interpreted session execution → `results.csv`.
-- `references/engine-playwright.md` — Playwright engine contract: runtime DOM resolution via a per-run `run-case.mjs` driver → `results.csv` + `compiled_steps`.
+- `references/engine-playwright.md` — Playwright engine contract: deterministic execution of op-annotated cases via the shipped driver → `results.csv` + `cases.compiled.yaml`.
+- `references/run-case.mjs` — the shipped Playwright driver + orchestrator (copy into the report dir; do NOT hand-write a driver).
+- `references/compile.mjs` — single source of truth for the op → IR v2 mapping; imported by `run-case.mjs` and `recompile-ir.mjs`.
+- `references/recompile-ir.mjs` — pure IR rebuild from `cases.yaml` + `results.csv` after manual edits (union rule, post-write check).
 - `references/compile-ir.md` — how a run (either engine) emits `cases.compiled.yaml` (IR v2) for offline execution by `aqa-runner`.
 - `references/report-template.html` — HTML report template rendered in Step 6.
 

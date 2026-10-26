@@ -2,7 +2,14 @@
 
 [English](README.md) | **한국어**
 
-[Ten](https://github.com/ten1010-io) 제작 — AI 기반 QA 자동화와 Git 워크플로우를 위한 Claude Code 플러그인.
+[Ten](https://github.com/ten1010-io) 제작 — AI 기반 QA 자동화, Git 워크플로우, 팀 회의 준비를 위한 Claude Code 플러그인.
+
+| 플러그인 | 버전 | 스킬 |
+|---|---|---|
+| [`ten-toolkit`](#명령어) | `0.5.0` | `/aqa-inspect` · `/aqa-jira` · `/create-pr` · `/merge-check` |
+| [`java-team`](#java-team-플러그인) | `0.1.0` | `/java-team:meeting-prep` |
+
+스킬은 플러그인 버전을 따라간다 — 스킬마다 따로 버전을 매기지 않는다. 설치된 것은 `/plugin` 으로 확인한다. **플러그인의 `version` 을 올릴 때 이 표도 같은 커밋에서 갱신한다.**
 
 ## 설치
 
@@ -219,7 +226,7 @@ Slack 업무공유 댓글
 
 **처음 실행:** 최근 회의 페이지 링크와 Slack 업무 공유 채널을 한 번 묻고, 플러그인 데이터 디렉토리(`~/.claude/plugins/data/…`, 업데이트해도 유지)의 `meeting-prep.json` 에 저장한다. 바꾸려면 "회의 설정 다시 해줘"라고 말한다.
 
-**변경 배포:** `plugins/java-team/.claude-plugin/plugin.json` 의 `version` 을 올린다 (`marketplace.json` 에는 버전을 적지 않는다). 버전 문자열이 바뀌기 전까지 팀원은 새 커밋을 받지 않는다.
+**변경 배포:** `plugins/java-team/.claude-plugin/plugin.json` 의 `version` 을 올리고 (`marketplace.json` 에는 버전을 적지 않는다) 두 README 최상단의 버전 표도 함께 갱신한다. 버전 문자열이 바뀌기 전까지 팀원은 새 커밋을 받지 않는다.
 
 ---
 

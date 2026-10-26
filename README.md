@@ -2,7 +2,14 @@
 
 **English** | [한국어](README.ko.md)
 
-By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation and Git workflow.
+By [Ten](https://github.com/ten1010-io) — Claude Code plugins for AI-powered QA automation, Git workflow, and team meeting prep.
+
+| Plugin | Version | Skills |
+|---|---|---|
+| [`ten-toolkit`](#commands) | `0.5.0` | `/aqa-inspect` · `/aqa-jira` · `/create-pr` · `/merge-check` |
+| [`java-team`](#java-team-plugin) | `0.1.0` | `/java-team:meeting-prep` |
+
+Skills ship with their plugin — there is no separate skill version. Run `/plugin` to see what you have installed. **When you bump a plugin's `version`, update this table in the same commit.**
 
 ## Installation
 
@@ -249,7 +256,7 @@ Ticket keys never appear as text in the page body. Each item carries a status �
 
 **First run:** asks once for a link to a recent meeting page and the Slack work-share channel, then saves them to `meeting-prep.json` in the plugin data directory (`~/.claude/plugins/data/…`, kept across updates). Say "reset meeting settings" to change them.
 
-**Releasing a change:** bump `version` in `plugins/java-team/.claude-plugin/plugin.json` (set it only there, not in `marketplace.json`). Users don't receive commits until the version string changes.
+**Releasing a change:** bump `version` in `plugins/java-team/.claude-plugin/plugin.json` (set it only there, not in `marketplace.json`) and update the version table at the top of both READMEs. Users don't receive commits until the version string changes.
 
 ---
 

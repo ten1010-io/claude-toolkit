@@ -7,12 +7,25 @@
 ## 설치
 
 ```bash
-# 1단계: 마켓플레이스 추가
+# 1단계: 마켓플레이스 추가 (한 번만)
 /plugin marketplace add ten1010-io/ten-toolkit
 
-# 2단계: 설치
-/plugin install ten-toolkit@ten1010-io
+# 2단계: 필요한 플러그인 설치
+/plugin install ten-toolkit@ten1010-io    # QA 자동화 + Git 워크플로우 명령어
+/plugin install java-team@ten1010-io      # 개발3팀(JAVA팀) 공용 스킬
 ```
+
+`ten1010-io` 마켓플레이스에는 **버전을 따로 관리하는 플러그인이 두 개** 있다. 하나를 설치해도 다른 하나는 깔리지 않으니 필요한 것만 고르면 된다.
+
+`/plugin` 으로 설치 상태를 확인한 뒤 이름으로 호출한다.
+
+```
+/aqa-inspect --target https://app.example.com   # ten-toolkit
+/create-pr                                       # ten-toolkit
+/java-team:meeting-prep                          # java-team
+```
+
+서드파티 마켓플레이스는 기본으로 자동 업데이트가 꺼져 있다. `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update** 를 한 번 켜 두거나, `/plugin marketplace update ten1010-io` 로 직접 받는다.
 
 ## 명령어
 
@@ -132,6 +145,84 @@
 
 ---
 
+## java-team 플러그인
+
+같은 마켓플레이스에 있는 별도 플러그인으로, Ten 개발3팀(JAVA팀) 공용 스킬을 담는다. 버전은 `ten-toolkit` 과 따로 관리한다.
+
+```bash
+/plugin marketplace add ten1010-io/ten-toolkit   # 이미 추가했다면 생략
+/plugin install java-team@ten1010-io
+```
+
+**자동 업데이트 켜기 (한 번만):** 서드파티 마켓플레이스는 기본으로 자동 업데이트가 꺼져 있다. `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update** 를 선택한다. 새 버전은 세션이 시작된 뒤 내려받아지고 다음 세션부터 적용된다. 켜지 않았다면 `/plugin marketplace update ten1010-io` 로 직접 받는다.
+
+### /java-team:meeting-prep
+
+자바 회의의 본인 섹션을 준비한다. 실행한 요일·시간으로 회의를 정하고, 지난 회의 이후의 Jira 티켓, 본인이 고친 Confluence 문서, GitHub 커밋·PR·이슈, Slack 업무공유 스레드의 본인 댓글을 모아 보여주고, 사용자가 고른 항목만 회의 형식에 맞춰 정리한 뒤, 검토를 거쳐서만 Confluence 회의 페이지의 `### <이름>` 섹션에 반영한다.
+
+| | 월요일 — 간단 공유 | 수요일 — 주간 업무 리뷰 |
+|---|---|---|
+| 실행 시점 | 월요일 | 화요일 오후 ~ 수요일 |
+| 항목 | 번호 매긴 최상위 항목 5개, 하위 항목 없음 | 번호 매긴 항목 최대 5개, 중점 항목은 하위 항목 |
+| 수집 범위 | 직전 회의 이후 | 직전 수요일 회의 이후 + 월요일 본인 섹션 (빼지 않음) |
+| 정하는 것 | 굵직한 일 | 무엇을 중점으로 다룰지 (사용자와 함께) |
+| 시각화 | — | 도움이 되면 표·다이어그램. 한 블록에 안 들어갈 만큼 크면 Artifact 로 만들어 링크 |
+
+**사용법:**
+
+```
+/java-team:meeting-prep
+```
+
+"회의 준비해줘", "스크럼 준비해줘" 처럼 말해도 된다. 실행한 요일·시간으로 어느 회의인지 스스로 정하고, 판단이 안 서면 묻는다.
+
+**예시 — 처음 실행할 때:**
+
+```
+> /java-team:meeting-prep
+
+월요일 10:04 — 월요일 간단 공유로 준비합니다.
+처음 실행이라 두 가지만 묻습니다. 최근 회의 페이지 링크와
+업무 공유 Slack 채널 (쓰지 않으면 건너뛰어도 됩니다).
+
+> https://your-site.atlassian.net/wiki/spaces/XX/pages/123456/2026+10+23+43
+> #team-work-share
+
+meeting-prep.json 에 저장했습니다. 다음부터는 묻지 않습니다.
+
+지난 회의(10/23) 이후 확인된 작업입니다.
+
+Jira
+ 1. ABC-3477 알림 임계값 편집 — Done
+ 2. ABC-3561 백엔드 wiki — To Do
+GitHub PR
+ 3. backend #742 긴급 등급 이름 변경 — merged
+ 4. web #1787 Alert 화면 간격·배지 색 정리 — merged
+Slack 업무공유 댓글
+ 5. 10/24 5.2.0 QA
+
+[선택]  공유할 항목을 고르세요  →  1+3+4 와 5 를 고름
+
+검토 부탁드립니다.
+
+### <본인 이름>
+1. 관리자가 화면에서 알림 임계값을 고칠 수 있게 됨 ([완료](https://your-site.atlassian.net/browse/ABC-3477))
+2. 5.2.0 을 내보내기 전 전체 기능 점검 (진행 중)
+
+이대로 괜찮으면 회의 페이지의 `### <본인 이름>` 섹션만 교체합니다.
+다른 팀원 영역은 한 글자도 건드리지 않습니다.
+```
+
+페이지 본문에는 티켓 번호를 글자로 쓰지 않는다. 항목마다 **완료 / 진행 중 / 할 예정** 상태가 붙고, 그 상태 글자에 티켓 링크가 걸린다.
+
+**사전 요구사항:** Atlassian(Jira/Confluence) 커넥터, [GitHub CLI](https://cli.github.com/). Slack 커넥터는 선택.
+
+**처음 실행:** 최근 회의 페이지 링크와 Slack 업무 공유 채널을 한 번 묻고, 플러그인 데이터 디렉토리(`~/.claude/plugins/data/…`, 업데이트해도 유지)의 `meeting-prep.json` 에 저장한다. 바꾸려면 "회의 설정 다시 해줘"라고 말한다.
+
+**변경 배포:** `plugins/java-team/.claude-plugin/plugin.json` 의 `version` 을 올린다 (`marketplace.json` 에는 버전을 적지 않는다). 버전 문자열이 바뀌기 전까지 팀원은 새 커밋을 받지 않는다.
+
+---
+
 ## 구조
 
 ```
@@ -144,17 +235,24 @@ ten-toolkit/
 │   ├── aqa-jira.md
 │   ├── create-pr.md
 │   └── merge-check.md
-└── skills/
-    ├── aqa-inspect/
-    │   ├── SKILL.md
-    │   └── references/
-    ├── aqa-jira/
-    │   ├── SKILL.md
-    │   └── references/
-    ├── create-pr/
-    │   └── SKILL.md
-    └── merge-check/
-        └── SKILL.md
+├── skills/
+│   ├── aqa-inspect/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   ├── aqa-jira/
+│   │   ├── SKILL.md
+│   │   └── references/
+│   ├── create-pr/
+│   │   └── SKILL.md
+│   └── merge-check/
+│       └── SKILL.md
+└── plugins/
+    └── java-team/
+        ├── .claude-plugin/
+        │   └── plugin.json    # java-team 플러그인 메타데이터 (버전)
+        └── skills/
+            └── meeting-prep/
+                └── SKILL.md
 ```
 
 ## 라이선스

@@ -1,0 +1,19 @@
+{
+  "name": "java-team",
+  "version": "0.1.0",
+  "description": "Ten 개발3팀(JAVA팀) 공용 스킬 모음. meeting-prep 은 월·수 자바 회의의 본인 업무 공유 섹션을 준비해 Confluence 에 반영한다.",
+  "author": {
+    "name": "ten1010-io",
+    "url": "https://github.com/ten1010-io"
+  },
+  "homepage": "https://github.com/ten1010-io/ten-toolkit",
+  "repository": "https://github.com/ten1010-io/ten-toolkit",
+  "license": "MIT",
+  "keywords": [
+    "scrum",
+    "meeting",
+    "confluence",
+    "jira",
+    "slack"
+  ]
+}

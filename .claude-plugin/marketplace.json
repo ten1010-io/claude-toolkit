@@ -47,6 +47,31 @@
         "workflow"
       ],
       "strict": false
+    },
+    {
+      "name": "java-team",
+      "source": "./plugins/java-team",
+      "description": "Ten 개발3팀(JAVA팀) 공용 스킬. /java-team:meeting-prep 은 지난 회의 이후의 Jira·GitHub·Slack 업무공유 내역을 모아 월(간단 공유)·수(상세 리뷰) 회의 형식으로 정리하고, 검토 후 Confluence 회의 페이지의 본인 섹션에 반영한다.",
+      "author": {
+        "name": "ten1010-io"
+      },
+      "homepage": "https://github.com/ten1010-io/ten-toolkit",
+      "repository": "https://github.com/ten1010-io/ten-toolkit",
+      "license": "MIT",
+      "keywords": [
+        "scrum",
+        "meeting",
+        "confluence",
+        "jira",
+        "slack"
+      ],
+      "category": "productivity",
+      "tags": [
+        "scrum",
+        "meeting",
+        "confluence",
+        "team"
+      ]
     }
   ],
   "renames": {

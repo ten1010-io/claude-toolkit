@@ -2,7 +2,14 @@
 
 [English](README.md) | **한국어**
 
-[Ten](https://github.com/ten1010-io) 제작 — AI 기반 QA 자동화와 Git 워크플로우를 위한 Claude Code 플러그인.
+[Ten](https://github.com/ten1010-io) 제작 — AI 기반 QA 자동화, Git 워크플로우, 팀 회의 준비를 위한 Claude Code 플러그인.
+
+| 플러그인 | 버전 | 스킬 |
+|---|---|---|
+| [`ten-toolkit`](#명령어) | `0.5.0` | `/aqa-inspect` · `/aqa-jira` · `/create-pr` · `/merge-check` |
+| [`java-team`](#java-team-플러그인) | `0.1.0` | `/java-team:meeting-prep` |
+
+스킬은 플러그인 버전을 따라간다 — 스킬마다 따로 버전을 매기지 않는다. 설치된 것은 `/plugin` 으로 확인한다. **플러그인의 `version` 을 올릴 때 이 표도 같은 커밋에서 갱신한다.**
 
 ## 설치
 
@@ -25,7 +32,44 @@
 /java-team:meeting-prep                          # java-team
 ```
 
-서드파티 마켓플레이스는 기본으로 자동 업데이트가 꺼져 있다. `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update** 를 한 번 켜 두거나, `/plugin marketplace update ten1010-io` 로 직접 받는다.
+## 최신 상태 유지
+
+서드파티 마켓플레이스는 **기본으로 자동 업데이트가 꺼져 있다.**
+
+### 자동 업데이트 켜기 (한 번만)
+
+**이 토글에는 CLI 명령이 없다.** 대화형 메뉴에만 있으므로 Claude Code 세션 안에서 아래를 따라간다.
+
+1. **`/plugin`** 을 입력하고 Enter.
+2. **Marketplaces** 를 고른다. ↑ ↓ 로 옮기고 Enter 로 선택한다.
+3. 목록에서 **`ten1010-io`** 를 고른다.
+4. **Enable auto-update** 를 고른다. 항목이 *Disable* 쪽으로 보이면 이미 켜진 것이니 그대로 두고 나온다.
+5. Esc 로 메뉴를 빠져나온다.
+
+한 번만 하면 이 마켓에 대해 다시 할 일이 없다. 켜 두면 새 버전이 세션 시작 뒤 내려받아지고 **다음 세션부터 적용된다** — 쓰던 중에 플러그인이 바뀌지 않는다.
+
+나중에 확인하려면 같은 화면을 다시 연다. 켜져 있으면 그 자리가 *끄는* 항목으로 바뀌어 있다.
+
+### 직접 받기
+
+셸에서:
+
+```bash
+claude plugin marketplace update ten1010-io   # 마켓 목록 갱신
+claude plugin update java-team@ten1010-io     # 새 버전 받기 (적용은 재시작 후)
+claude plugin list                            # 설치된 버전 확인
+```
+
+세션 안에서 같은 일을 하려면:
+
+```
+/plugin marketplace update ten1010-io
+/plugin install java-team@ten1010-io
+```
+
+### 결국 `version` 문자열이 관문이다
+
+설치 캐시가 버전으로 갈린다 — `~/.claude/plugins/cache/<마켓>/<플러그인>/<버전>/`. 그래서 **`plugin.json` 의 `version` 을 올리지 않고 스킬만 고쳐 머지하면 자동 업데이트를 켜 뒀든 아니든 아무에게도 가지 않는다.** 내보내고 싶은 변경은 아무리 작아도 버전을 올린다.
 
 ## 명령어
 
@@ -154,7 +198,7 @@
 /plugin install java-team@ten1010-io
 ```
 
-**자동 업데이트 켜기 (한 번만):** 서드파티 마켓플레이스는 기본으로 자동 업데이트가 꺼져 있다. `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update** 를 선택한다. 새 버전은 세션이 시작된 뒤 내려받아지고 다음 세션부터 적용된다. 켜지 않았다면 `/plugin marketplace update ten1010-io` 로 직접 받는다.
+**최신 상태 유지:** [최신 상태 유지](#최신-상태-유지) 참고. 서드파티 마켓은 자동 업데이트가 기본으로 꺼져 있고, `version` 을 올려야만 변경이 나간다.
 
 ### /java-team:meeting-prep
 
@@ -219,7 +263,7 @@ Slack 업무공유 댓글
 
 **처음 실행:** 최근 회의 페이지 링크와 Slack 업무 공유 채널을 한 번 묻고, 플러그인 데이터 디렉토리(`~/.claude/plugins/data/…`, 업데이트해도 유지)의 `meeting-prep.json` 에 저장한다. 바꾸려면 "회의 설정 다시 해줘"라고 말한다.
 
-**변경 배포:** `plugins/java-team/.claude-plugin/plugin.json` 의 `version` 을 올린다 (`marketplace.json` 에는 버전을 적지 않는다). 버전 문자열이 바뀌기 전까지 팀원은 새 커밋을 받지 않는다.
+**변경 배포:** `plugins/java-team/.claude-plugin/plugin.json` 의 `version` 을 올리고 (`marketplace.json` 에는 버전을 적지 않는다) 두 README 최상단의 버전 표도 함께 갱신한다. 버전 문자열이 바뀌기 전까지 팀원은 새 커밋을 받지 않는다.
 
 ---
 

@@ -2,7 +2,14 @@
 
 **English** | [한국어](README.ko.md)
 
-By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered QA automation and Git workflow.
+By [Ten](https://github.com/ten1010-io) — Claude Code plugins for AI-powered QA automation, Git workflow, and team meeting prep.
+
+| Plugin | Version | Skills |
+|---|---|---|
+| [`ten-toolkit`](#commands) | `0.5.0` | `/aqa-inspect` · `/aqa-jira` · `/create-pr` · `/merge-check` |
+| [`java-team`](#java-team-plugin) | `0.1.0` | `/java-team:meeting-prep` |
+
+Skills ship with their plugin — there is no separate skill version. Run `/plugin` to see what you have installed. **When you bump a plugin's `version`, update this table in the same commit.**
 
 ## Installation
 
@@ -25,7 +32,44 @@ Run `/plugin` to confirm what is installed, then invoke a command by name:
 /java-team:meeting-prep                          # java-team
 ```
 
-Third-party marketplaces don't auto-update by default. Turn it on once: `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update**. Otherwise pull new versions yourself with `/plugin marketplace update ten1010-io`.
+## Staying up to date
+
+Third-party marketplaces **do not auto-update by default.**
+
+### Turn auto-update on (once)
+
+This toggle has no CLI flag — it lives in the interactive menu. Do it once, inside a Claude Code session:
+
+1. Type **`/plugin`** and press Enter.
+2. Choose **Marketplaces**. Move with ↑ ↓, select with Enter.
+3. Choose **`ten1010-io`** from the list.
+4. Choose **Enable auto-update**. If the entry reads *Disable* instead, it is already on — leave it and back out.
+5. Press Esc to leave the menu.
+
+That's it; you never have to do it again for this marketplace. With it on, a new version is downloaded after a session starts and **loads from the next session** — so a plugin that just updated won't change under you mid-session.
+
+To check later, open the same screen: the entry now offers to turn it *off*.
+
+### Or update by hand
+
+From your shell:
+
+```bash
+claude plugin marketplace update ten1010-io   # refresh the catalog
+claude plugin update java-team@ten1010-io     # pull the new version (restart to apply)
+claude plugin list                            # confirm the installed version
+```
+
+The same thing inside a session:
+
+```
+/plugin marketplace update ten1010-io
+/plugin install java-team@ten1010-io
+```
+
+### The `version` string gates everything
+
+The install cache is keyed by version — `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. A commit that changes a skill **without bumping `version` in `plugin.json` never reaches anyone**, auto-update on or off. Bump the version for every change you want shipped, however small.
 
 ## Commands
 
@@ -184,7 +228,7 @@ A separate plugin in the same marketplace with shared skills for Ten's Java team
 /plugin install java-team@ten1010-io
 ```
 
-**Turn on auto-update (once):** third-party marketplaces don't auto-update by default. Run `/plugin` → **Marketplaces** → `ten1010-io` → **Enable auto-update**. New versions are downloaded after a session starts and load from the next session. Without it, run `/plugin marketplace update ten1010-io`.
+**Keeping it current:** see [Staying up to date](#staying-up-to-date). Auto-update is off by default for third-party marketplaces, and a change only ships when `version` is bumped.
 
 ### /java-team:meeting-prep
 
@@ -249,7 +293,7 @@ Ticket keys never appear as text in the page body. Each item carries a status �
 
 **First run:** asks once for a link to a recent meeting page and the Slack work-share channel, then saves them to `meeting-prep.json` in the plugin data directory (`~/.claude/plugins/data/…`, kept across updates). Say "reset meeting settings" to change them.
 
-**Releasing a change:** bump `version` in `plugins/java-team/.claude-plugin/plugin.json` (set it only there, not in `marketplace.json`). Users don't receive commits until the version string changes.
+**Releasing a change:** bump `version` in `plugins/java-team/.claude-plugin/plugin.json` (set it only there, not in `marketplace.json`) and update the version table at the top of both READMEs. Users don't receive commits until the version string changes.
 
 ---
 

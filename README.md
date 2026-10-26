@@ -1,4 +1,4 @@
-# Claude Toolkit
+# Ten Toolkit
 
 **English** | [한국어](README.ko.md)
 
@@ -8,10 +8,10 @@ By [Ten](https://github.com/ten1010-io) — A Claude Code plugin for AI-powered 
 
 ```bash
 # Step 1: Add to marketplace
-/plugin marketplace add ten1010-io/claude-toolkit
+/plugin marketplace add ten1010-io/ten-toolkit
 
 # Step 2: Install
-/plugin install claude-toolkit@ten1010-io
+/plugin install ten-toolkit@ten1010-io
 ```
 
 ## Commands
@@ -165,7 +165,7 @@ Dry-run merge check — fetches the latest target branch and tests if the curren
 ## Structure
 
 ```
-claude-toolkit/
+ten-toolkit/
 ├── .claude-plugin/
 │   ├── plugin.json        # Plugin metadata
 │   └── marketplace.json   # Marketplace catalog

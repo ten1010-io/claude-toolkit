@@ -1,13 +1,13 @@
 {
-  "name": "claude-toolkit",
-  "version": "0.4.5",
+  "name": "ten-toolkit",
+  "version": "0.5.0",
   "description": "AI-powered QA automation and Git workflow tools for Claude Code.",
   "author": {
     "name": "ten1010-io",
     "url": "https://github.com/ten1010-io"
   },
-  "homepage": "https://github.com/ten1010-io/claude-toolkit",
-  "repository": "https://github.com/ten1010-io/claude-toolkit",
+  "homepage": "https://github.com/ten1010-io/ten-toolkit",
+  "repository": "https://github.com/ten1010-io/ten-toolkit",
   "license": "MIT",
   "keywords": [
     "claude-code",

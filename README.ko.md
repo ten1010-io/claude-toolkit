@@ -1,4 +1,4 @@
-# Claude Toolkit
+# Ten Toolkit
 
 [English](README.md) | **한국어**
 
@@ -8,10 +8,10 @@
 
 ```bash
 # 1단계: 마켓플레이스 추가
-/plugin marketplace add ten1010-io/claude-toolkit
+/plugin marketplace add ten1010-io/ten-toolkit
 
 # 2단계: 설치
-/plugin install claude-toolkit@ten1010-io
+/plugin install ten-toolkit@ten1010-io
 ```
 
 ## 명령어
@@ -135,7 +135,7 @@
 ## 구조
 
 ```
-claude-toolkit/
+ten-toolkit/
 ├── .claude-plugin/
 │   ├── plugin.json        # 플러그인 메타데이터
 │   └── marketplace.json   # 마켓플레이스 카탈로그

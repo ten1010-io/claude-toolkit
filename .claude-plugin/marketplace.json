@@ -8,18 +8,18 @@
   },
   "plugins": [
     {
-      "name": "claude-toolkit",
+      "name": "ten-toolkit",
       "source": {
         "source": "url",
-        "url": "https://github.com/ten1010-io/claude-toolkit.git"
+        "url": "https://github.com/ten1010-io/ten-toolkit.git"
       },
       "description": "AI-powered QA automation and Git workflow toolkit. /aqa-inspect runs end-to-end QA (generate test cases from a Figma design or live-URL exploration → execute → results.csv + HTML report), /aqa-jira files Jira tickets from failed QA results behind a human gate, /create-pr creates pull requests, /merge-check does dry-run merge validation.",
-      "version": "0.4.5",
+      "version": "0.5.0",
       "author": {
         "name": "ten1010-io"
       },
-      "homepage": "https://github.com/ten1010-io/claude-toolkit",
-      "repository": "https://github.com/ten1010-io/claude-toolkit",
+      "homepage": "https://github.com/ten1010-io/ten-toolkit",
+      "repository": "https://github.com/ten1010-io/ten-toolkit",
       "license": "MIT",
       "keywords": [
         "qa",
@@ -48,5 +48,8 @@
       ],
       "strict": false
     }
-  ]
+  ],
+  "renames": {
+    "claude-toolkit": "ten-toolkit"
+  }
 }

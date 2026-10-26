@@ -38,13 +38,17 @@ Third-party marketplaces **do not auto-update by default.**
 
 ### Turn auto-update on (once)
 
-There is no CLI flag for this toggle — it lives in the interactive menu, so run it inside a Claude Code session:
+This toggle has no CLI flag — it lives in the interactive menu. Do it once, inside a Claude Code session:
 
-```
-/plugin  →  Marketplaces  →  ten1010-io  →  Enable auto-update
-```
+1. Type **`/plugin`** and press Enter.
+2. Choose **Marketplaces**. Move with ↑ ↓, select with Enter.
+3. Choose **`ten1010-io`** from the list.
+4. Choose **Enable auto-update**. If the entry reads *Disable* instead, it is already on — leave it and back out.
+5. Press Esc to leave the menu.
 
-With it on, a new version is downloaded after a session starts and loads from the next session.
+That's it; you never have to do it again for this marketplace. With it on, a new version is downloaded after a session starts and **loads from the next session** — so a plugin that just updated won't change under you mid-session.
+
+To check later, open the same screen: the entry now offers to turn it *off*.
 
 ### Or update by hand
 
